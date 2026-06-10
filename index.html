@@ -254,7 +254,7 @@ async function doLogin() {
     if (d.user.role !== 'hotelowner' && d.user.role !== 'admin') {
       showErr('Доступ только для отельеров'); return;
     }
-    currentUser = d.user;
+    currentUser = {...d.user, token: d.token};
     sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
     initApp();
   } catch(e) { showErr('Ошибка соединения'); }
@@ -306,13 +306,24 @@ function showPage(name, el) {
 // ── LOAD BOOKINGS ──
 async function loadMyBookings() {
   try {
-    const r = await fetch(`${API}/api/bookings?limit=100`);
+    const token = currentUser?.token;
+    const headers = {'Content-Type':'application/json'};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const r = await fetch(`${API}/api/bookings/my?limit=100`, { headers });
     const d = await r.json();
-    // Фильтруем по email отельера (пока нет hotel_id привязки)
-    myBookings = (d.bookings || []);
+    if (!r.ok) {
+      console.warn('bookings/my error:', d.error);
+      myBookings = [];
+    } else {
+      myBookings = (d.bookings || []);
+    }
     updateStats();
     renderDashboard();
-  } catch(e) { myBookings = []; }
+  } catch(e) {
+    console.warn('loadMyBookings error:', e.message);
+    myBookings = [];
+  }
 }
 
 function updateStats() {
@@ -345,18 +356,21 @@ function renderDashboard() {
 function renderBookingsTable(bookings) {
   document.getElementById('bookings-table').innerHTML = bookings.length ? `
     <table>
-      <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th></tr>
+      <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr>
       ${bookings.map(b => `
         <tr>
-          <td><b>${b.booking_num}</b></td>
+          <td><b style="color:var(--green)">${b.booking_num}</b></td>
           <td>${b.guest_name||'—'}<br><span style="color:var(--muted);font-size:10px">${b.guest_email}</span></td>
           <td>${b.guest_phone||'—'}</td>
           <td>${b.hotel_name||'—'}</td>
           <td>${fmtDate(b.check_in)}</td>
           <td>${fmtDate(b.check_out)}</td>
           <td>${b.nights||1}</td>
-          <td><b>$${parseFloat(b.total_price||0).toFixed(0)}</b></td>
+          <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${b.currency||'BYN'}</b></td>
           <td>${statusBadge(b.status)}</td>
+          <td>
+            ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${b.booking_num}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">Отменить</button>` : '—'}
+          </td>
         </tr>`).join('')}
     </table>` : '<div class="empty">Броней пока нет</div>';
 }
@@ -380,6 +394,29 @@ function copyIcal() {
   const url = document.getElementById('ical-url').textContent;
   navigator.clipboard?.writeText(url);
   showToast('Ссылка скопирована!');
+}
+
+// ── MANAGE BOOKINGS ──
+async function hotelCancelBooking(bookingNum) {
+  if (!confirm('Отменить бронь ' + bookingNum + '?\nГость получит уведомление.')) return;
+  try {
+    const token = currentUser?.token;
+    const r = await fetch(`${API}/api/bookings/${bookingNum}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token||'')
+      },
+      body: JSON.stringify({ status: 'cancelled' })
+    });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || 'Ошибка'); return; }
+    showToast('Бронь ' + bookingNum + ' отменена');
+    await loadMyBookings();
+    renderBookingsTable(myBookings);
+  } catch(e) {
+    alert('Ошибка соединения');
+  }
 }
 
 // ── HELPERS ──
