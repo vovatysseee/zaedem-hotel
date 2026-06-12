@@ -259,11 +259,11 @@ tr:hover td{background:var(--surface)}
           </div>
           <div style="padding:1.2rem">
             <div id="hotel-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
-            <label style="display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#c9f135;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">
-              📷 Загрузить фото
-              <input type="file" id="photo-upload" multiple accept="image/*" style="display:none" onchange="uploadPhotos(this)">
-            </label>
-            <div id="upload-progress" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input id="photo-url-input" type="url" placeholder="Вставьте ссылку на фото (https://...)" style="flex:1;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:13px;font-family:inherit">
+              <button onclick="addPhotoByUrl()" style="background:var(--green);color:#c9f135;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap">📷 Добавить фото</button>
+            </div>
+            <div id="upload-progress" style="margin-top:6px;font-size:13px;color:var(--muted)"></div>
           </div>
         </div>
 
@@ -548,13 +548,15 @@ async function saveHotelInfo() {
   };
   try {
     const r = await fetch(`${API}/api/hotels/${myHotelId}`, {method:'PATCH',headers,body:JSON.stringify(body)});
+    const d = await r.json();
     const msg = document.getElementById('hotel-save-msg');
     if (r.ok) {
       msg.textContent = '✅ Сохранено!';
       msg.style.cssText = 'display:block;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
     } else {
-      msg.textContent = '❌ Ошибка сохранения';
+      msg.textContent = '❌ ' + (d.error || 'Ошибка сохранения');
       msg.style.cssText = 'display:block;color:#c00;background:#fff0f0;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+      console.error('saveHotelInfo error:', d);
     }
     setTimeout(() => msg.style.display = 'none', 3000);
   } catch(e) {
@@ -584,33 +586,35 @@ async function loadHotelPhotos(hotelId) {
   }
 }
 
-async function uploadPhotos(input) {
-  if (!myHotelId || !input.files.length) return;
+async function addPhotoByUrl() {
+  if (!myHotelId) return;
+  const input = document.getElementById('photo-url-input');
+  const url = input.value.trim();
+  if (!url || !url.startsWith('http')) {
+    alert('Введите корректную ссылку на фото');
+    return;
+  }
   const token = currentUser?.token;
   const progress = document.getElementById('upload-progress');
-  progress.textContent = `Загрузка ${input.files.length} фото...`;
-
-  for (let i = 0; i < input.files.length; i++) {
-    const file = input.files[i];
-    const formData = new FormData();
-    formData.append('photo', file);
-    formData.append('hotel_id', myHotelId);
-    formData.append('is_cover', i === 0 ? 'true' : 'false');
-    try {
-      const r = await fetch(`${API}/api/hotels/${myHotelId}/photos`, {
-        method: 'POST',
-        headers: {'Authorization': 'Bearer ' + token},
-        body: formData
-      });
-      progress.textContent = `Загружено ${i+1}/${input.files.length}...`;
-    } catch(e) {
-      console.error('Upload error:', e.message);
+  progress.textContent = 'Добавляем фото...';
+  try {
+    const r = await fetch(`${API}/api/hotels/${myHotelId}/photos`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + token},
+      body: JSON.stringify({url, is_cover: false})
+    });
+    const d = await r.json();
+    if (r.ok) {
+      progress.textContent = '✅ Фото добавлено!';
+      input.value = '';
+      loadHotelPhotos(myHotelId);
+    } else {
+      progress.textContent = '❌ ' + (d.error || 'Ошибка');
     }
+  } catch(e) {
+    progress.textContent = '❌ Ошибка: ' + e.message;
   }
-  progress.textContent = '✅ Фото загружены!';
   setTimeout(() => { progress.textContent = ''; }, 3000);
-  loadHotelPhotos(myHotelId);
-  input.value = '';
 }
 
 async function deletePhoto(hotelId, photoId) {
