@@ -107,6 +107,34 @@ tr:hover td{background:var(--surface)}
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;transform:translateY(20px);opacity:0;transition:.3s}
 .toast.show{transform:translateY(0);opacity:1}
+/* Модальное окно номера */
+.room-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.room-modal-overlay.open{display:flex}
+.room-modal{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.room-modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--faint);position:sticky;top:0;background:#fff;z-index:1}
+.room-modal-title{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:800}
+.room-modal-close{width:32px;height:32px;border:none;background:var(--faint);border-radius:8px;cursor:pointer;font-size:16px}
+.room-modal-body{padding:24px}
+.rm-field{margin-bottom:16px}
+.rm-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+.rm-input{width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box}
+.rm-input:focus{border-color:var(--green)}
+.rm-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rm-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.rm-amenities{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.rm-amen{padding:6px 10px;border:1.5px solid var(--faint);border-radius:8px;cursor:pointer;font-size:12px;transition:.15s;user-select:none}
+.rm-amen.on{border-color:var(--green);background:#f0f8f0;color:var(--green);font-weight:600}
+.rm-bed-select{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.rm-bed-opt{padding:7px 14px;border:1.5px solid var(--faint);border-radius:8px;cursor:pointer;font-size:12px;transition:.15s}
+.rm-bed-opt.on{border-color:var(--green);background:#f0f8f0;color:var(--green);font-weight:600}
+.rm-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:8px}
+.rm-photo-item{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1.5px solid var(--faint)}
+.rm-photo-item img{width:100%;height:100%;object-fit:cover}
+.rm-photo-del{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1}
+.room-modal-foot{padding:16px 24px;border-top:1px solid var(--faint);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff}
+.rm-btn{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit}
+.rm-btn-cancel{background:var(--faint);color:var(--ink)}
+.rm-btn-save{background:var(--green);color:#c9f135}
 </style>
 </head>
 <body>
@@ -642,31 +670,143 @@ async function loadHotelRooms(hotelId) {
       el.innerHTML = '<div style="color:var(--muted);font-size:13px">Номера не добавлены. Нажмите "+ Добавить номер"</div>';
       return;
     }
-    el.innerHTML = rooms.map(r => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--faint)">
-        <div>
-          <div style="font-weight:700;font-size:14px">${r.name_ru||r.name}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px">👥 до ${r.capacity||2} · 🛏 ${r.beds||1} кров. · ${r.size_sqm||0} м²</div>
+    el.innerHTML = rooms.map(r => {
+      const photos = (() => { try { return JSON.parse(r.photos||'[]'); } catch(e){ return []; } })();
+      const amenities = (() => { try { return JSON.parse(r.amenities||'[]'); } catch(e){ return []; } })();
+      const amenMap = {wifi:'📶',tv:'📺',ac:'❄️',bath:'🛁',shower:'🚿',balcony:'🌅',fridge:'🧊',kettle:'☕',safe:'🔒',desk:'💼'};
+      return `<div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--faint);align-items:flex-start">
+        ${photos[0] ? `<img src="${photos[0]}" style="width:100px;height:75px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">` : `<div style="width:100px;height:75px;background:var(--faint);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px">🏨</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${r.name_ru||'Номер'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">👥 до ${r.capacity||2} гостей · 🛏 ${r.beds||1} кров. · 📐 ${r.size_sqm||0} м² · 🏠 ${r.total_rooms||1} номеров</div>
+          ${amenities.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${amenities.map(a=>`<span style="font-size:11px;background:var(--faint);padding:2px 6px;border-radius:4px">${amenMap[a]||''} ${a}</span>`).join('')}</div>` : ''}
         </div>
-        <div style="text-align:right">
-          <div style="font-weight:800;font-size:16px;color:var(--green)">${r.base_price||0} BYN</div>
-          <div style="font-size:11px;color:var(--muted)">за ночь</div>
-          <button onclick="editRoom('${r.id}')" style="margin-top:4px;background:var(--faint);border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">✏️ Ред.</button>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:800;font-size:18px;color:var(--green)">${r.base_price||0} BYN</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px">за ночь</div>
+          <button onclick="editRoom('${r.id}')" style="background:var(--green);color:#c9f135;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">✏️ Изменить</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   } catch(e) {
     console.error('loadHotelRooms error:', e.message);
   }
 }
 
-function addRoom() {
-  const name = prompt('Название номера (например: Стандарт):');
-  if (!name) return;
-  const price = prompt('Цена за ночь (BYN):');
-  if (!price) return;
-  const capacity = prompt('Максимум гостей:') || '2';
-  saveRoom(null, {name_ru: name, base_price: parseFloat(price), capacity: parseInt(capacity)});
+// ── МОДАЛЬНОЕ ОКНО НОМЕРА ──────────────────────────────
+let rmPhotos = []; // фото текущего редактируемого номера
+
+function openRoomModal(room) {
+  const modal = document.getElementById('room-modal-overlay');
+  document.getElementById('room-modal-title').textContent = room ? 'Редактировать номер' : 'Добавить номер';
+  document.getElementById('rm-id').value = room?.id || '';
+  document.getElementById('rm-name').value = room?.name_ru || '';
+  document.getElementById('rm-price').value = room?.base_price || '';
+  document.getElementById('rm-capacity').value = room?.capacity || 2;
+  document.getElementById('rm-total').value = room?.total_rooms || 1;
+  document.getElementById('rm-size').value = room?.size_sqm || '';
+  document.getElementById('rm-floor').value = room?.floor || '';
+  document.getElementById('rm-desc').value = room?.description_ru || '';
+
+  // Кровати
+  document.querySelectorAll('.rm-bed-opt').forEach(el => {
+    el.classList.toggle('on', String(el.dataset.val) === String(room?.beds || 1));
+  });
+
+  // Удобства
+  const amenities = room?.amenities || [];
+  document.querySelectorAll('.rm-amen').forEach(el => {
+    el.classList.toggle('on', amenities.includes(el.dataset.val));
+  });
+
+  // Фото
+  rmPhotos = room?.photos || [];
+  renderRoomPhotos();
+
+  modal.classList.add('open');
+  document.getElementById('rm-name').focus();
 }
+
+function closeRoomModal() {
+  document.getElementById('room-modal-overlay').classList.remove('open');
+  rmPhotos = [];
+}
+
+function selectBed(el) {
+  document.querySelectorAll('.rm-bed-opt').forEach(e => e.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function toggleAmen(el) {
+  el.classList.toggle('on');
+}
+
+function addRoomPhoto() {
+  const url = document.getElementById('rm-photo-url').value.trim();
+  if (!url || !url.startsWith('http')) { alert('Введите корректную ссылку'); return; }
+  rmPhotos.push(url);
+  renderRoomPhotos();
+  document.getElementById('rm-photo-url').value = '';
+}
+
+function removeRoomPhoto(idx) {
+  rmPhotos.splice(idx, 1);
+  renderRoomPhotos();
+}
+
+function renderRoomPhotos() {
+  const grid = document.getElementById('rm-photos');
+  if (!rmPhotos.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:12px">Фото не добавлены</div>'; return; }
+  grid.innerHTML = rmPhotos.map((url, i) => `
+    <div class="rm-photo-item">
+      <img src="${url}" onerror="this.src=''" alt="">
+      <button class="rm-photo-del" onclick="removeRoomPhoto(${i})">✕</button>
+    </div>`).join('');
+}
+
+async function saveRoomModal() {
+  const name = document.getElementById('rm-name').value.trim();
+  const price = parseFloat(document.getElementById('rm-price').value);
+  const capacity = parseInt(document.getElementById('rm-capacity').value) || 2;
+  if (!name || !price) { alert('Название и цена обязательны'); return; }
+
+  const beds = parseInt(document.querySelector('.rm-bed-opt.on')?.dataset.val || '1');
+  const amenities = [...document.querySelectorAll('.rm-amen.on')].map(el => el.dataset.val);
+  const roomId = document.getElementById('rm-id').value;
+
+  const data = {
+    name_ru:        name,
+    name_en:        name,
+    base_price:     price,
+    capacity,
+    beds,
+    total_rooms:    parseInt(document.getElementById('rm-total').value) || 1,
+    size_sqm:       parseFloat(document.getElementById('rm-size').value) || 0,
+    description_ru: document.getElementById('rm-desc').value.trim(),
+    amenities:      JSON.stringify(amenities),
+    photos:         JSON.stringify(rmPhotos),
+  };
+
+  const token = currentUser?.token;
+  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+  try {
+    const url = roomId ? `${API}/api/hotels/rooms/${roomId}` : `${API}/api/hotels/rooms`;
+    const method = roomId ? 'PATCH' : 'POST';
+    const body = roomId ? data : {...data, hotel_id: myHotelId};
+    const r = await fetch(url, {method, headers, body: JSON.stringify(body)});
+    if (r.ok) {
+      closeRoomModal();
+      loadHotelRooms(myHotelId);
+    } else {
+      const d = await r.json();
+      alert('Ошибка: ' + (d.error || 'Неизвестная ошибка'));
+    }
+  } catch(e) {
+    console.error('saveRoom error:', e.message);
+  }
+}
+
+function addRoom() { openRoomModal(null); }
 
 async function editRoom(roomId) {
   const token = currentUser?.token;
@@ -674,27 +814,91 @@ async function editRoom(roomId) {
   const data = await r.json();
   const room = (data.room_types||[]).find(r => String(r.id) === String(roomId));
   if (!room) return;
-  const name = prompt('Название:', room.name_ru||'');
-  if (!name) return;
-  const price = prompt('Цена BYN:', room.base_price||0);
-  if (!price) return;
-  saveRoom(roomId, {name_ru: name, base_price: parseFloat(price)});
-}
-
-async function saveRoom(roomId, data) {
-  const token = currentUser?.token;
-  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
-  try {
-    const url = roomId ? `${API}/api/hotels/rooms/${roomId}` : `${API}/api/hotels/rooms`;
-    const method = roomId ? 'PATCH' : 'POST';
-    const body = roomId ? data : {...data, hotel_id: myHotelId};
-    await fetch(url, {method, headers, body: JSON.stringify(body)});
-    loadHotelRooms(myHotelId);
-  } catch(e) {
-    console.error('saveRoom error:', e.message);
-  }
+  openRoomModal(room);
 }
 
 </script>
+
+<!-- МОДАЛЬНОЕ ОКНО НОМЕРА -->
+<div class="room-modal-overlay" id="room-modal-overlay" onclick="if(event.target===this)closeRoomModal()">
+  <div class="room-modal">
+    <div class="room-modal-head">
+      <div class="room-modal-title" id="room-modal-title">Добавить номер</div>
+      <button class="room-modal-close" onclick="closeRoomModal()">✕</button>
+    </div>
+    <div class="room-modal-body">
+      <input type="hidden" id="rm-id">
+      <div class="rm-field">
+        <label class="rm-label">Название номера *</label>
+        <input class="rm-input" id="rm-name" placeholder="Например: Стандарт, Люкс, Делюкс...">
+      </div>
+      <div class="rm-grid">
+        <div class="rm-field">
+          <label class="rm-label">Цена за ночь (BYN) *</label>
+          <input class="rm-input" id="rm-price" type="number" min="1" placeholder="150">
+        </div>
+        <div class="rm-field">
+          <label class="rm-label">Макс. гостей *</label>
+          <input class="rm-input" id="rm-capacity" type="number" min="1" max="10" placeholder="2">
+        </div>
+      </div>
+      <div class="rm-grid3">
+        <div class="rm-field">
+          <label class="rm-label">Кол-во номеров</label>
+          <input class="rm-input" id="rm-total" type="number" min="1" placeholder="1">
+        </div>
+        <div class="rm-field">
+          <label class="rm-label">Площадь (м²)</label>
+          <input class="rm-input" id="rm-size" type="number" min="0" placeholder="25">
+        </div>
+        <div class="rm-field">
+          <label class="rm-label">Этаж</label>
+          <input class="rm-input" id="rm-floor" type="number" min="0" placeholder="2">
+        </div>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Тип кровати</label>
+        <div class="rm-bed-select" id="rm-beds">
+          <div class="rm-bed-opt on" data-val="1" onclick="selectBed(this)">🛏 1 кровать</div>
+          <div class="rm-bed-opt" data-val="2" onclick="selectBed(this)">🛏🛏 2 кровати</div>
+          <div class="rm-bed-opt" data-val="3" onclick="selectBed(this)">🛏🛏🛏 3 кровати</div>
+          <div class="rm-bed-opt" data-val="0" onclick="selectBed(this)">🛋 Диван-кровать</div>
+        </div>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Удобства в номере</label>
+        <div class="rm-amenities" id="rm-amenities">
+          <div class="rm-amen" data-val="wifi" onclick="toggleAmen(this)">📶 Wi-Fi</div>
+          <div class="rm-amen" data-val="tv" onclick="toggleAmen(this)">📺 TV</div>
+          <div class="rm-amen" data-val="ac" onclick="toggleAmen(this)">❄️ Кондиционер</div>
+          <div class="rm-amen" data-val="bath" onclick="toggleAmen(this)">🛁 Ванна</div>
+          <div class="rm-amen" data-val="shower" onclick="toggleAmen(this)">🚿 Душ</div>
+          <div class="rm-amen" data-val="balcony" onclick="toggleAmen(this)">🌅 Балкон</div>
+          <div class="rm-amen" data-val="fridge" onclick="toggleAmen(this)">🧊 Холодильник</div>
+          <div class="rm-amen" data-val="kettle" onclick="toggleAmen(this)">☕ Чайник</div>
+          <div class="rm-amen" data-val="safe" onclick="toggleAmen(this)">🔒 Сейф</div>
+          <div class="rm-amen" data-val="desk" onclick="toggleAmen(this)">💼 Рабочий стол</div>
+        </div>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Описание</label>
+        <textarea class="rm-input" id="rm-desc" rows="3" placeholder="Опишите номер..." style="resize:vertical"></textarea>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Фото номера</label>
+        <div class="rm-photos" id="rm-photos"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input class="rm-input" id="rm-photo-url" placeholder="Ссылка на фото (https://...)" style="flex:1">
+          <button onclick="addRoomPhoto()" style="background:var(--green);color:#c9f135;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">+ Фото</button>
+        </div>
+      </div>
+    </div>
+    <div class="room-modal-foot">
+      <button class="rm-btn rm-btn-cancel" onclick="closeRoomModal()">Отмена</button>
+      <button class="rm-btn rm-btn-save" onclick="saveRoomModal()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
