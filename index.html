@@ -144,6 +144,8 @@ tr:hover td{background:var(--surface)}
       <div class="sb-section">Главное</div>
       <div class="nav-item active" onclick="showPage('dashboard',this)">📊 Дашборд</div>
       <div class="nav-item" onclick="showPage('bookings',this)">📋 Мои брони <span class="nav-badge" id="nb-new">0</span></div>
+      <div class="sb-section">Управление</div>
+      <div class="nav-item" onclick="showPage('hotel',this)">🏨 Мой отель</div>
       <div class="sb-section">Настройки</div>
       <div class="nav-item" onclick="showPage('ical',this)">📅 Календарь (iCal)</div>
       <div class="nav-item" onclick="showPage('profile',this)">⚙️ Профиль</div>
@@ -213,6 +215,65 @@ tr:hover td{background:var(--surface)}
             <b style="color:var(--ink)">Google Calendar:</b> Другие календари → + → По URL → вставьте ссылку<br>
             <b style="color:var(--ink)">Apple Calendar:</b> Файл → Новая подписка на календарь → вставьте ссылку<br>
             <b style="color:var(--ink)">Outlook:</b> Добавить календарь → Подписаться из Интернета → вставьте ссылку
+          </div>
+        </div>
+      </div>
+
+      <!-- МОЙ ОТЕЛЬ -->
+      <div class="page" id="page-hotel">
+        <div class="section">
+          <div class="sec-head">
+            <span class="sec-title">Информация об отеле</span>
+            <button class="sec-btn" onclick="saveHotelInfo()">💾 Сохранить</button>
+          </div>
+          <div style="padding:1.2rem">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Название отеля</label>
+                <input id="h-name" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="Название отеля">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Адрес</label>
+                <input id="h-address" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="Адрес">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Телефон</label>
+                <input id="h-phone" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375 XX XXX-XX-XX">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Email</label>
+                <input id="h-email" type="email" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="hotel@example.com">
+              </div>
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Описание</label>
+              <textarea id="h-desc" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Описание отеля..."></textarea>
+            </div>
+            <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="sec-head">
+            <span class="sec-title">Фотографии</span>
+          </div>
+          <div style="padding:1.2rem">
+            <div id="hotel-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+            <label style="display:inline-flex;align-items:center;gap:8px;background:var(--green);color:#c9f135;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700">
+              📷 Загрузить фото
+              <input type="file" id="photo-upload" multiple accept="image/*" style="display:none" onchange="uploadPhotos(this)">
+            </label>
+            <div id="upload-progress" style="margin-top:10px;font-size:13px;color:var(--muted)"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="sec-head">
+            <span class="sec-title">Номера и цены</span>
+            <button class="sec-btn" onclick="addRoom()">+ Добавить номер</button>
+          </div>
+          <div id="rooms-list" style="padding:1.2rem">
+            <div class="loading"><div class="spin"></div><br>Загрузка...</div>
           </div>
         </div>
       </div>
@@ -298,9 +359,10 @@ function showPage(name, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('on');
   if (el) el.classList.add('active');
-  const titles = {dashboard:'Дашборд',bookings:'Мои брони',ical:'Календарь (iCal)',profile:'Профиль'};
+  const titles = {dashboard:'Дашборд',bookings:'Мои брони',hotel:'Мой отель',ical:'Календарь (iCal)',profile:'Профиль'};
   document.getElementById('pageTitle').textContent = titles[name] || name;
   if (name === 'bookings') renderBookingsTable(myBookings);
+  if (name === 'hotel') loadHotelData();
 }
 
 // ── LOAD BOOKINGS ──
@@ -437,6 +499,198 @@ function showToast(msg) {
   t.className = 'toast show';
   setTimeout(() => t.className = 'toast', 3000);
 }
+
+// ── МОЙ ОТЕЛЬ ──────────────────────────────────────────
+let myHotelId = null;
+
+async function loadHotelData() {
+  try {
+    const token = currentUser?.token;
+    const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+
+    // Получаем список отелей отельера
+    const r = await fetch(`${API}/api/hotels/owner/my`, {headers});
+    const hotels = await r.json();
+    if (!hotels.length) {
+      document.getElementById('hotel-save-msg').textContent = 'У вас нет привязанных отелей';
+      document.getElementById('hotel-save-msg').style.display = 'block';
+      return;
+    }
+
+    const h = hotels[0];
+    myHotelId = h.id;
+
+    // Заполняем форму
+    document.getElementById('h-name').value = h.name_ru || '';
+    document.getElementById('h-address').value = h.address || '';
+    document.getElementById('h-phone').value = h.phone || '';
+    document.getElementById('h-email').value = h.email || '';
+    document.getElementById('h-desc').value = h.description_ru || '';
+
+    // Загружаем фото и номера
+    loadHotelPhotos(h.id);
+    loadHotelRooms(h.id);
+  } catch(e) {
+    console.error('loadHotelData error:', e.message);
+  }
+}
+
+async function saveHotelInfo() {
+  if (!myHotelId) return;
+  const token = currentUser?.token;
+  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+  const body = {
+    name_ru:        document.getElementById('h-name').value.trim(),
+    address:        document.getElementById('h-address').value.trim(),
+    phone:          document.getElementById('h-phone').value.trim(),
+    email:          document.getElementById('h-email').value.trim(),
+    description_ru: document.getElementById('h-desc').value.trim(),
+  };
+  try {
+    const r = await fetch(`${API}/api/hotels/${myHotelId}`, {method:'PATCH',headers,body:JSON.stringify(body)});
+    const msg = document.getElementById('hotel-save-msg');
+    if (r.ok) {
+      msg.textContent = '✅ Сохранено!';
+      msg.style.cssText = 'display:block;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+    } else {
+      msg.textContent = '❌ Ошибка сохранения';
+      msg.style.cssText = 'display:block;color:#c00;background:#fff0f0;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+    }
+    setTimeout(() => msg.style.display = 'none', 3000);
+  } catch(e) {
+    console.error('saveHotelInfo error:', e.message);
+  }
+}
+
+async function loadHotelPhotos(hotelId) {
+  try {
+    const token = currentUser?.token;
+    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers:{'Authorization':'Bearer '+token}});
+    const data = await r.json();
+    const photos = data.photos || [];
+    const grid = document.getElementById('hotel-photos-grid');
+    if (!photos.length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:13px">Фото не добавлены</div>';
+      return;
+    }
+    grid.innerHTML = photos.map((p,i) => `
+      <div style="position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1.5px solid var(--faint)">
+        <img src="${p.url||p}" style="width:100%;height:100%;object-fit:cover">
+        <button onclick="deletePhoto('${hotelId}','${p.id||i}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
+        ${i===0?'<div style="position:absolute;bottom:4px;left:4px;background:#c9f135;color:#0d2b15;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">ОБЛОЖКА</div>':''}
+      </div>`).join('');
+  } catch(e) {
+    console.error('loadHotelPhotos error:', e.message);
+  }
+}
+
+async function uploadPhotos(input) {
+  if (!myHotelId || !input.files.length) return;
+  const token = currentUser?.token;
+  const progress = document.getElementById('upload-progress');
+  progress.textContent = `Загрузка ${input.files.length} фото...`;
+
+  for (let i = 0; i < input.files.length; i++) {
+    const file = input.files[i];
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('hotel_id', myHotelId);
+    formData.append('is_cover', i === 0 ? 'true' : 'false');
+    try {
+      const r = await fetch(`${API}/api/hotels/${myHotelId}/photos`, {
+        method: 'POST',
+        headers: {'Authorization': 'Bearer ' + token},
+        body: formData
+      });
+      progress.textContent = `Загружено ${i+1}/${input.files.length}...`;
+    } catch(e) {
+      console.error('Upload error:', e.message);
+    }
+  }
+  progress.textContent = '✅ Фото загружены!';
+  setTimeout(() => { progress.textContent = ''; }, 3000);
+  loadHotelPhotos(myHotelId);
+  input.value = '';
+}
+
+async function deletePhoto(hotelId, photoId) {
+  if (!confirm('Удалить фото?')) return;
+  const token = currentUser?.token;
+  try {
+    await fetch(`${API}/api/hotels/${hotelId}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    loadHotelPhotos(hotelId);
+  } catch(e) {
+    console.error('deletePhoto error:', e.message);
+  }
+}
+
+async function loadHotelRooms(hotelId) {
+  try {
+    const token = currentUser?.token;
+    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers:{'Authorization':'Bearer '+token}});
+    const data = await r.json();
+    const rooms = data.room_types || [];
+    const el = document.getElementById('rooms-list');
+    if (!rooms.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px">Номера не добавлены. Нажмите "+ Добавить номер"</div>';
+      return;
+    }
+    el.innerHTML = rooms.map(r => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--faint)">
+        <div>
+          <div style="font-weight:700;font-size:14px">${r.name_ru||r.name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">👥 до ${r.capacity||2} · 🛏 ${r.beds||1} кров. · ${r.size_sqm||0} м²</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:800;font-size:16px;color:var(--green)">${r.base_price||0} BYN</div>
+          <div style="font-size:11px;color:var(--muted)">за ночь</div>
+          <button onclick="editRoom('${r.id}')" style="margin-top:4px;background:var(--faint);border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:12px">✏️ Ред.</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    console.error('loadHotelRooms error:', e.message);
+  }
+}
+
+function addRoom() {
+  const name = prompt('Название номера (например: Стандарт):');
+  if (!name) return;
+  const price = prompt('Цена за ночь (BYN):');
+  if (!price) return;
+  const capacity = prompt('Максимум гостей:') || '2';
+  saveRoom(null, {name_ru: name, base_price: parseFloat(price), capacity: parseInt(capacity)});
+}
+
+async function editRoom(roomId) {
+  const token = currentUser?.token;
+  const r = await fetch(`${API}/api/hotels/${myHotelId}`, {headers:{'Authorization':'Bearer '+token}});
+  const data = await r.json();
+  const room = (data.room_types||[]).find(r => r.id === roomId);
+  if (!room) return;
+  const name = prompt('Название:', room.name_ru||'');
+  if (!name) return;
+  const price = prompt('Цена BYN:', room.base_price||0);
+  if (!price) return;
+  saveRoom(roomId, {name_ru: name, base_price: parseFloat(price)});
+}
+
+async function saveRoom(roomId, data) {
+  const token = currentUser?.token;
+  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+  try {
+    const url = roomId ? `${API}/api/rooms/${roomId}` : `${API}/api/rooms`;
+    const method = roomId ? 'PATCH' : 'POST';
+    const body = roomId ? data : {...data, hotel_id: myHotelId};
+    await fetch(url, {method, headers, body: JSON.stringify(body)});
+    loadHotelRooms(myHotelId);
+  } catch(e) {
+    console.error('saveRoom error:', e.message);
+  }
+}
+
 </script>
 </body>
 </html>
