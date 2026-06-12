@@ -545,8 +545,11 @@ async function loadHotelData() {
       return;
     }
 
-    const h = hotels[0];
-    myHotelId = h.id;
+    myHotelId = hotels[0].id;
+
+    // Загружаем полные данные отеля
+    const r2 = await fetch(`${API}/api/hotels/${myHotelId}`, {headers});
+    const h = await r2.json();
 
     // Заполняем форму
     document.getElementById('h-name').value = h.name_ru || '';
@@ -554,10 +557,11 @@ async function loadHotelData() {
     document.getElementById('h-phone').value = h.phone || '';
     document.getElementById('h-email').value = h.email || '';
     document.getElementById('h-desc').value = h.description_ru || '';
+    if (h.name_ru) document.getElementById('sb-hotel-name').textContent = h.name_ru;
 
     // Загружаем фото и номера
-    loadHotelPhotos(h.id);
-    loadHotelRooms(h.id);
+    loadHotelPhotos(myHotelId);
+    loadHotelRooms(myHotelId);
   } catch(e) {
     console.error('loadHotelData error:', e.message);
   }
