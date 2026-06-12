@@ -252,7 +252,7 @@ tr:hover td{background:var(--surface)}
         <div class="section">
           <div class="sec-head">
             <span class="sec-title">Информация об отеле</span>
-            <button class="sec-btn" onclick="saveHotelInfo()">💾 Сохранить</button>
+            <button onclick="saveHotelInfo()" style="background:var(--green);color:#c9f135;border:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">💾 Сохранить изменения</button>
           </div>
           <div style="padding:1.2rem">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -298,7 +298,7 @@ tr:hover td{background:var(--surface)}
         <div class="section">
           <div class="sec-head">
             <span class="sec-title">Номера и цены</span>
-            <button class="sec-btn" onclick="addRoom()">+ Добавить номер</button>
+            <button onclick="addRoom()" style="background:var(--green);color:#c9f135;border:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">+ Добавить номер</button>
           </div>
           <div id="rooms-list" style="padding:1.2rem">
             <div class="loading"><div class="spin"></div><br>Загрузка...</div>
@@ -581,6 +581,8 @@ async function saveHotelInfo() {
     if (r.ok) {
       msg.textContent = '✅ Сохранено!';
       msg.style.cssText = 'display:block;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+      // Обновляем название в сайдбаре
+      if (d.name_ru) document.getElementById('sb-hotel-name').textContent = d.name_ru;
     } else {
       msg.textContent = '❌ ' + (d.error || 'Ошибка сохранения');
       msg.style.cssText = 'display:block;color:#c00;background:#fff0f0;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
