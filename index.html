@@ -681,7 +681,7 @@ async function saveRoom(roomId, data) {
   const token = currentUser?.token;
   const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
   try {
-    const url = roomId ? `${API}/api/rooms/${roomId}` : `${API}/api/rooms`;
+    const url = roomId ? `${API}/api/hotels/rooms/${roomId}` : `${API}/api/hotels/rooms`;
     const method = roomId ? 'PATCH' : 'POST';
     const body = roomId ? data : {...data, hotel_id: myHotelId};
     await fetch(url, {method, headers, body: JSON.stringify(body)});
