@@ -672,7 +672,7 @@ async function editRoom(roomId) {
   const token = currentUser?.token;
   const r = await fetch(`${API}/api/hotels/${myHotelId}`, {headers:{'Authorization':'Bearer '+token}});
   const data = await r.json();
-  const room = (data.room_types||[]).find(r => r.id === roomId);
+  const room = (data.room_types||[]).find(r => String(r.id) === String(roomId));
   if (!room) return;
   const name = prompt('Название:', room.name_ru||'');
   if (!name) return;
