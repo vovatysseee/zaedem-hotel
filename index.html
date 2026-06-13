@@ -174,6 +174,7 @@ tr:hover td{background:var(--surface)}
       <div class="nav-item" onclick="showPage('bookings',this)">📋 Мои брони <span class="nav-badge" id="nb-new">0</span></div>
       <div class="sb-section">Управление</div>
       <div class="nav-item" onclick="showPage('hotel',this)">🏨 Мой отель</div>
+      <div class="nav-item" onclick="showPage('calendar',this)">💰 Цены и доступность</div>
       <div class="sb-section">Настройки</div>
       <div class="nav-item" onclick="showPage('ical',this)">📅 Календарь (iCal)</div>
       <div class="nav-item" onclick="showPage('profile',this)">⚙️ Профиль</div>
@@ -243,6 +244,59 @@ tr:hover td{background:var(--surface)}
             <b style="color:var(--ink)">Google Calendar:</b> Другие календари → + → По URL → вставьте ссылку<br>
             <b style="color:var(--ink)">Apple Calendar:</b> Файл → Новая подписка на календарь → вставьте ссылку<br>
             <b style="color:var(--ink)">Outlook:</b> Добавить календарь → Подписаться из Интернета → вставьте ссылку
+          </div>
+        </div>
+      </div>
+
+      <!-- ЦЕНЫ И ДОСТУПНОСТЬ -->
+      <div class="page" id="page-calendar">
+        <div class="section">
+          <div class="sec-head"><span class="sec-title">Цены и доступность</span></div>
+          <div style="padding:1.2rem">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+              Выберите номер, затем кликайте по датам в календаре, чтобы задать цену или закрыть день для броней.
+              Без изменений действует базовая цена номера.
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Номер</label>
+              <select id="cal-room" onchange="calLoad()" style="width:100%;max-width:360px;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit"></select>
+            </div>
+
+            <div id="cal-controls" style="display:none">
+              <div style="display:flex;gap:18px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+                <button onclick="calMonth(-1)" style="background:var(--faint);border:none;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px">‹</button>
+                <div id="cal-month-label" style="font-weight:700;font-size:16px;min-width:160px;text-align:center"></div>
+                <button onclick="calMonth(1)" style="background:var(--faint);border:none;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px">›</button>
+                <div style="margin-left:auto;font-size:12px;color:var(--muted)">Базовая цена: <b id="cal-base">—</b> BYN</div>
+              </div>
+
+              <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:560px"></div>
+
+              <div style="display:flex;gap:14px;align-items:center;margin-top:14px;font-size:12px;color:var(--muted);flex-wrap:wrap">
+                <span><span style="display:inline-block;width:12px;height:12px;background:var(--green-pale);border-radius:3px;vertical-align:-2px"></span> своя цена</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:var(--red-pale);border-radius:3px;vertical-align:-2px"></span> закрыто</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid var(--faint);border-radius:3px;vertical-align:-2px"></span> базовая цена</span>
+              </div>
+
+              <div style="background:var(--surface);border:1px solid var(--faint);border-radius:12px;padding:16px;margin-top:18px;max-width:560px">
+                <div style="font-weight:700;font-size:14px;margin-bottom:12px">Быстрая настройка периода</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">С даты</label><input type="date" id="cal-from" style="width:100%;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">По дату</label><input type="date" id="cal-to" style="width:100%;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Цена (BYN)</label><input type="number" id="cal-price" placeholder="напр. 120" style="width:130px;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                  <button onclick="calApplyRange(false)" style="background:var(--green);color:#c9f135;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Задать цену</button>
+                  <button onclick="calApplyRange(true)" style="background:var(--red);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Закрыть даты</button>
+                </div>
+                <div style="border-top:1px solid var(--faint);margin:14px 0"></div>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Наценка на выходные (пт-сб), %</label><input type="number" id="cal-wknd" placeholder="напр. 20" style="width:160px;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                  <button onclick="calWeekend()" style="background:var(--green2);color:#c9f135;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Применить к выходным</button>
+                </div>
+                <div id="cal-msg" style="display:none;margin-top:12px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -387,10 +441,11 @@ function showPage(name, el) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('on');
   if (el) el.classList.add('active');
-  const titles = {dashboard:'Дашборд',bookings:'Мои брони',hotel:'Мой отель',ical:'Календарь (iCal)',profile:'Профиль'};
+  const titles = {dashboard:'Дашборд',bookings:'Мои брони',hotel:'Мой отель',calendar:'Цены и доступность',ical:'Календарь (iCal)',profile:'Профиль'};
   document.getElementById('pageTitle').textContent = titles[name] || name;
   if (name === 'bookings') renderBookingsTable(myBookings);
   if (name === 'hotel') loadHotelData();
+  if (name === 'calendar') calInit();
 }
 
 // ── LOAD BOOKINGS ──
@@ -821,6 +876,164 @@ async function editRoom(roomId) {
   const room = (data.room_types||[]).find(r => String(r.id) === String(roomId));
   if (!room) return;
   openRoomModal(room);
+}
+
+
+// ══════════════════════════════════════════════════════
+// КАЛЕНДАРЬ ЦЕН И ДОСТУПНОСТИ
+// ══════════════════════════════════════════════════════
+var _calRooms=[];
+var _calRoomId=null;
+var _calBase=0;
+var _calTotal=1;
+var _calView=new Date();      // отображаемый месяц
+var _calData={};              // 'YYYY-MM-DD' -> {price, rooms_left}
+
+async function calInit(){
+  if(!myHotelId){ setTimeout(calInit,400); return; }
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/${myHotelId}`,{headers:{'Authorization':'Bearer '+token}});
+    const data=await r.json();
+    _calRooms=(data.room_types||[]).filter(rt=>rt.is_active!==false);
+    const sel=document.getElementById('cal-room');
+    if(!_calRooms.length){
+      sel.innerHTML='<option value="">Сначала добавьте номера в разделе «Мой отель»</option>';
+      document.getElementById('cal-controls').style.display='none';
+      return;
+    }
+    sel.innerHTML=_calRooms.map(rt=>`<option value="${rt.id}">${rt.name_ru||'Номер'} — ${rt.base_price||0} BYN</option>`).join('');
+    _calRoomId=_calRooms[0].id;
+    calLoad();
+  }catch(e){ console.error('calInit',e.message); }
+}
+
+function calMonthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+async function calLoad(){
+  const sel=document.getElementById('cal-room');
+  _calRoomId=sel.value||_calRoomId;
+  const room=_calRooms.find(r=>String(r.id)===String(_calRoomId));
+  if(!room) return;
+  _calBase=parseFloat(room.base_price)||0;
+  _calTotal=parseInt(room.total_rooms)||1;
+  document.getElementById('cal-base').textContent=_calBase;
+  document.getElementById('cal-controls').style.display='block';
+
+  // период: текущий показываемый месяц ± запас
+  const from=new Date(_calView.getFullYear(),_calView.getMonth(),1).toISOString().slice(0,10);
+  const to=new Date(_calView.getFullYear(),_calView.getMonth()+1,0).toISOString().slice(0,10);
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/calendar?from=${from}&to=${to}`,{headers:{'Authorization':'Bearer '+token}});
+    const data=await r.json();
+    _calData={};
+    (data.days||[]).forEach(d=>{ _calData[d.date]={price:d.price,rooms_left:d.rooms_left}; });
+  }catch(e){ console.error('calLoad',e.message); _calData={}; }
+  calRender();
+}
+
+function calMonth(delta){
+  _calView=new Date(_calView.getFullYear(),_calView.getMonth()+delta,1);
+  calLoad();
+}
+
+function calRender(){
+  const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  document.getElementById('cal-month-label').textContent=months[_calView.getMonth()]+' '+_calView.getFullYear();
+  const grid=document.getElementById('cal-grid');
+  const wd=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  let html=wd.map(w=>`<div style="text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:4px 0">${w}</div>`).join('');
+
+  const first=new Date(_calView.getFullYear(),_calView.getMonth(),1);
+  let startDow=first.getDay(); startDow=(startDow===0)?6:startDow-1; // пн=0
+  for(let i=0;i<startDow;i++) html+='<div></div>';
+
+  const daysIn=new Date(_calView.getFullYear(),_calView.getMonth()+1,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  for(let day=1;day<=daysIn;day++){
+    const dt=_calView.getFullYear()+'-'+String(_calView.getMonth()+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const rec=_calData[dt];
+    let bg='#fff',border='1px solid var(--faint)',price=_calBase,closed=false;
+    if(rec){
+      if(parseInt(rec.rooms_left)===0){ bg='var(--red-pale)';closed=true; }
+      else if(rec.price!=null){ bg='var(--green-pale)';price=Math.round(rec.price); }
+    }
+    const past=dt<todayStr;
+    html+=`<div onclick="${past?'':`calDayClick('${dt}')`}" style="border:${border};background:${bg};border-radius:8px;padding:6px 4px;min-height:54px;cursor:${past?'default':'pointer'};opacity:${past?.4:1};text-align:center">
+      <div style="font-size:13px;font-weight:600">${day}</div>
+      <div style="font-size:10px;color:${closed?'var(--red)':'var(--muted)'};margin-top:2px">${closed?'закрыто':price+' BYN'}</div>
+    </div>`;
+  }
+  grid.innerHTML=html;
+}
+
+// Клик по дню — переключение: базовая → закрыто → обратно (быстрое действие)
+async function calDayClick(dt){
+  const rec=_calData[dt];
+  let body;
+  if(rec && parseInt(rec.rooms_left)===0){
+    // закрыто → открыть по базовой
+    body={dates:[dt],price:_calBase,rooms_left:_calTotal};
+  } else {
+    // открыто → закрыть
+    body={dates:[dt],closed:true};
+  }
+  await calPut(body);
+  calLoad();
+}
+
+async function calPut(body){
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/calendar`,{
+      method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify(body)
+    });
+    const d=await r.json();
+    if(!r.ok){ calMsg(d.error||'Ошибка',false); return false; }
+    return true;
+  }catch(e){ calMsg(e.message,false); return false; }
+}
+
+async function calApplyRange(closed){
+  const from=document.getElementById('cal-from').value;
+  const to=document.getElementById('cal-to').value;
+  if(!from||!to){ calMsg('Укажите период (с и по)',false); return; }
+  const price=document.getElementById('cal-price').value;
+  let body={from,to};
+  if(closed){ body.closed=true; }
+  else { if(!price){ calMsg('Укажите цену',false); return; } body.price=parseFloat(price); }
+  const ok=await calPut(body);
+  if(ok){ calMsg(closed?'Даты закрыты':'Цена задана на период',true); calLoad(); }
+}
+
+async function calWeekend(){
+  const from=document.getElementById('cal-from').value;
+  const to=document.getElementById('cal-to').value;
+  const percent=document.getElementById('cal-wknd').value;
+  if(!from||!to){ calMsg('Укажите период для наценки',false); return; }
+  if(!percent){ calMsg('Укажите процент наценки',false); return; }
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/weekend-pricing`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({from,to,percent:parseFloat(percent)})
+    });
+    const d=await r.json();
+    if(!r.ok){ calMsg(d.error||'Ошибка',false); return; }
+    calMsg(`Выходные: ${d.weekend_price} BYN, обновлено дней: ${d.days_updated}`,true);
+    calLoad();
+  }catch(e){ calMsg(e.message,false); }
+}
+
+function calMsg(text,ok){
+  const m=document.getElementById('cal-msg');
+  m.style.display='block';
+  m.textContent=text;
+  m.style.background=ok?'#EAF3DE':'#fef2f2';
+  m.style.color=ok?'#27500A':'#dc2626';
+  setTimeout(()=>{m.style.display='none';},4000);
 }
 
 </script>
