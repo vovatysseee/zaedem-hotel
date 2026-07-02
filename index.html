@@ -480,6 +480,7 @@ function updateStats() {
   document.getElementById('s-rev').textContent = '$' + rev.toFixed(0);
 }
 
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderDashboard() {
   const last5 = myBookings.slice(0, 5);
   document.getElementById('dash-bookings').innerHTML = last5.length ? `
@@ -488,8 +489,8 @@ function renderDashboard() {
       ${last5.map(b => `
         <tr>
           <td><b>${b.booking_num}</b></td>
-          <td>${b.guest_name||'—'}<br><span style="color:var(--muted);font-size:10px">${b.guest_email}</span></td>
-          <td>${b.hotel_name||'—'}</td>
+          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></td>
+          <td>${esc(b.hotel_name||'—')}</td>
           <td>${fmtDate(b.check_in)}</td>
           <td>${fmtDate(b.check_out)}</td>
           <td><b>$${parseFloat(b.total_price||0).toFixed(0)}</b></td>
@@ -505,9 +506,9 @@ function renderBookingsTable(bookings) {
       ${bookings.map(b => `
         <tr>
           <td><b style="color:var(--green)">${b.booking_num}</b></td>
-          <td>${b.guest_name||'—'}<br><span style="color:var(--muted);font-size:10px">${b.guest_email}</span></td>
-          <td>${b.guest_phone||'—'}</td>
-          <td>${b.hotel_name||'—'}</td>
+          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></td>
+          <td>${esc(b.guest_phone||'—')}</td>
+          <td>${esc(b.hotel_name||'—')}</td>
           <td>${fmtDate(b.check_in)}</td>
           <td>${fmtDate(b.check_out)}</td>
           <td>${b.nights||1}</td>
