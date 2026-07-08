@@ -470,9 +470,20 @@ function initApp() {
   renderProfile();
 }
 
-// Check saved session
-const saved = sessionStorage.getItem('hotel_user');
-if (saved) { currentUser = JSON.parse(saved); initApp(); }
+// Check saved session / вход по токену из URL (админ-impersonate)
+var _urlToken = new URLSearchParams(location.search).get('token');
+if (_urlToken) {
+  try {
+    var _p = JSON.parse(atob(_urlToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    currentUser = { id:_p.id, email:_p.email, role:_p.role, name:_p.email, token:_urlToken };
+    sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
+    history.replaceState({}, '', location.pathname); // убираем токен из адреса
+    initApp();
+  } catch (e) { console.error('token login', e); }
+} else {
+  const saved = sessionStorage.getItem('hotel_user');
+  if (saved) { currentUser = JSON.parse(saved); initApp(); }
+}
 
 // ── NAV ──
 function showPage(name, el) {
@@ -542,10 +553,10 @@ function renderBookingsTable(bookings) {
   document.getElementById('bookings-table').innerHTML = bookings.length ? `
     <table>
       <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr>
-      ${bookings.map(b => `
-        <tr>
+      ${bookings.map(b => { var foreign=b.guest_citizenship && b.guest_citizenship!=='Беларусь'; return `
+        <tr${foreign?' style="background:#fff5f5"':''}>
           <td><b style="color:var(--green)">${b.booking_num}</b></td>
-          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></td>
+          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(b.guest_citizenship)} — регистрация в МВД</span>`:''}</td>
           <td>${esc(b.guest_phone||'—')}</td>
           <td>${esc(b.hotel_name||'—')}</td>
           <td>${fmtDate(b.check_in)}</td>
@@ -553,11 +564,29 @@ function renderBookingsTable(bookings) {
           <td>${b.nights||1}</td>
           <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${b.currency||'BYN'}</b></td>
           <td>${statusBadge(b.status)}</td>
-          <td>
-            ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${b.booking_num}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700">Отменить</button>` : '—'}
+          <td style="display:flex;flex-direction:column;gap:4px">
+            ${foreign?`<button onclick="mvdAnketa('${b.booking_num}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📋 Анкета МВД</button>`:''}
+            ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${b.booking_num}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Отменить</button>` : '—'}
           </td>
-        </tr>`).join('')}
+        </tr>`; }).join('')}
     </table>` : '<div class="empty">Броней пока нет</div>';
+}
+// Анкета для МВД — печатная форма с данными иностранных гостей (авто-заполнена)
+function mvdAnketa(bookingNum){
+  var b=(myBookings||[]).find(function(x){return x.booking_num===bookingNum;}); if(!b)return;
+  var guests=[]; try{ guests=JSON.parse(b.guest_passports||'[]')||[]; }catch(e){ guests=[]; }
+  var rows=guests.map(function(g,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+(g.name||'')+'</td><td>'+(g.dob||'')+'</td><td>'+(g.passport||'')+'</td><td>'+(b.guest_citizenship||'')+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="color:#888">Данные гостей не заполнены</td></tr>';
+  var w=window.open('','_blank');
+  w.document.write('<html><head><meta charset="utf-8"><title>Анкета МВД — '+bookingNum+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;padding:30px;color:#111}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #999;padding:8px 10px;font-size:13px;text-align:left}th{background:#f0f0f0}.meta{font-size:13px;color:#444;margin-top:8px;line-height:1.7}@media print{button{display:none}}</style></head><body>'
+    +'<h2>Сведения о проживающих иностранных гражданах</h2>'
+    +'<div class="meta"><b>Объект:</b> '+(b.hotel_name||'')+'<br><b>Адрес:</b> '+(b.hotel_address||'—')+'<br><b>Бронь №:</b> '+bookingNum+'<br><b>Заезд:</b> '+fmtDate(b.check_in)+' &nbsp; <b>Выезд:</b> '+fmtDate(b.check_out)+'<br><b>Гражданство:</b> '+(b.guest_citizenship||'')+'</div>'
+    +'<table><tr><th>№</th><th>Имя и фамилия</th><th>Дата рождения</th><th>Паспорт</th><th>Гражданство</th></tr>'+rows+'</table>'
+    +'<p style="margin-top:20px"><button onclick="window.print()" style="padding:10px 20px;font-size:14px;cursor:pointer">🖨 Печать / Сохранить PDF</button></p>'
+    +'</body></html>');
+  w.document.close();
 }
 
 function renderProfile() {
