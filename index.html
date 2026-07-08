@@ -894,6 +894,10 @@ function openRoomModal(room) {
   document.getElementById('rm-size').value = room?.size_sqm || '';
   document.getElementById('rm-floor').value = room?.floor || '';
   document.getElementById('rm-desc').value = room?.description_ru || '';
+  // iCal номера
+  if(document.getElementById('rm-ical')){ try{ document.getElementById('rm-ical').value=(JSON.parse(room?.ical_import_urls||'[]')||[]).join('\n'); }catch(e){ document.getElementById('rm-ical').value=''; } }
+  if(document.getElementById('rm-ical-url')) document.getElementById('rm-ical-url').textContent = room?.id ? ('Ваша ссылка для других площадок: '+API+'/api/bookings/ical/'+myHotelId+'/room/'+room.id+'.ics') : 'Сохраните номер, чтобы получить ссылку экспорта.';
+  window._rmCurId = room?.id || '';
 
   // Кровати
   document.querySelectorAll('.rm-bed-opt').forEach(el => {
@@ -914,6 +918,22 @@ function openRoomModal(room) {
   document.getElementById('rm-name').focus();
 }
 
+async function checkRoomIcal(){
+  var id=window._rmCurId, msg=document.getElementById('rm-ical-msg');
+  if(!id){ if(msg){msg.textContent='Сначала сохраните номер.';msg.style.color='#c00';} return; }
+  // сохраняем текущие ссылки, потом проверяем
+  if(msg){msg.textContent='🔄 Проверяем…';msg.style.color='var(--green)';}
+  try{
+    var token=currentUser?.token;
+    var urls=((document.getElementById('rm-ical')||{}).value||'').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
+    await fetch(`${API}/api/hotels/rooms/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ical_import_urls:JSON.stringify(urls)})});
+    var r=await fetch(`${API}/api/hotels/rooms/${id}/ical-import`,{headers:{'Authorization':'Bearer '+token}});
+    var d=await r.json();
+    if(d.error){ if(msg){msg.textContent='❌ '+d.error;msg.style.color='#c00';} return; }
+    var n=(d.blocked||[]).length;
+    if(msg){ msg.textContent=d.sources?('✅ Занятых дней: '+n):'Ссылки не заданы';msg.style.color=d.sources?'#27500A':'#c00'; }
+  }catch(e){ if(msg){msg.textContent='❌ '+e.message;msg.style.color='#c00';} }
+}
 function closeRoomModal() {
   document.getElementById('room-modal-overlay').classList.remove('open');
   rmPhotos = [];
@@ -970,6 +990,7 @@ async function saveRoomModal() {
     total_rooms:    parseInt(document.getElementById('rm-total').value) || 1,
     size_sqm:       parseFloat(document.getElementById('rm-size').value) || 0,
     description_ru: document.getElementById('rm-desc').value.trim(),
+    ical_import_urls: JSON.stringify(((document.getElementById('rm-ical')||{}).value||'').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean)),
     amenities:      JSON.stringify(amenities),
     photos:         JSON.stringify(rmPhotos),
   };
@@ -1228,6 +1249,14 @@ function calMsg(text,ok){
       <div class="rm-field">
         <label class="rm-label">Описание</label>
         <textarea class="rm-input" id="rm-desc" rows="3" placeholder="Опишите номер..." style="resize:vertical"></textarea>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">🔒 Синхронизация календаря номера (iCal)</label>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">Для отелей: вставьте iCal-ссылки (.ics) этого номера с Booking/Avito/Суточно — по одной на строку. Занятые там даты закроются у вас (защита от овербукинга по номеру).</div>
+        <textarea class="rm-input" id="rm-ical" rows="2" placeholder="https://…/ical?room=…" style="resize:vertical;font-family:monospace;font-size:11px"></textarea>
+        <div id="rm-ical-url" style="font-size:11px;color:var(--muted);margin-top:6px;word-break:break-all"></div>
+        <button type="button" onclick="checkRoomIcal()" style="margin-top:6px;background:#fff;color:var(--green);border:1px solid var(--green);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">🔄 Проверить занятость номера</button>
+        <span id="rm-ical-msg" style="font-size:11px;margin-left:8px"></span>
       </div>
       <div class="rm-field">
         <label class="rm-label">Фото номера</label>
