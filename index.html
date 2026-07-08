@@ -326,10 +326,38 @@ tr:hover td{background:var(--surface)}
                 <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Email</label>
                 <input id="h-email" type="email" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="hotel@example.com">
               </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Тип объекта</label>
+                <select id="h-type" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff"><option value="guest">Усадьба / дом</option><option value="apart">Апартаменты / квартира</option><option value="hotel">Отель / гостиница</option></select>
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Telegram</label>
+                <input id="h-tg" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="@myhouse или t.me/myhouse">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">WhatsApp (номер)</label>
+                <input id="h-wa" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375291234567">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Viber (номер)</label>
+                <input id="h-viber" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375291234567">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Время заезда</label>
+                <input id="h-checkin" type="time" value="14:00" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Время выезда</label>
+                <input id="h-checkout" type="time" value="12:00" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit">
+              </div>
             </div>
             <div style="margin-bottom:16px">
               <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Описание</label>
               <textarea id="h-desc" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Описание отеля..."></textarea>
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Правила дома (видят гости)</label>
+              <textarea id="h-rules" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Можно с животными · Тихий час с 23:00 · Не курить в помещении · Заезд самостоятельный по коду"></textarea>
             </div>
             <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
           </div>
@@ -613,6 +641,13 @@ async function loadHotelData() {
     document.getElementById('h-phone').value = h.phone || '';
     document.getElementById('h-email').value = h.email || '';
     document.getElementById('h-desc').value = h.description_ru || '';
+    if(document.getElementById('h-type')) document.getElementById('h-type').value = h.object_type || 'guest';
+    if(document.getElementById('h-tg')) document.getElementById('h-tg').value = h.contact_tg || '';
+    if(document.getElementById('h-wa')) document.getElementById('h-wa').value = h.contact_wa || '';
+    if(document.getElementById('h-viber')) document.getElementById('h-viber').value = h.contact_viber || '';
+    if(document.getElementById('h-checkin')) document.getElementById('h-checkin').value = h.checkin_time || '14:00';
+    if(document.getElementById('h-checkout')) document.getElementById('h-checkout').value = h.checkout_time || '12:00';
+    if(document.getElementById('h-rules')) document.getElementById('h-rules').value = h.house_rules || '';
     if (h.name_ru) document.getElementById('sb-hotel-name').textContent = h.name_ru;
 
     // Загружаем фото и номера
@@ -633,6 +668,13 @@ async function saveHotelInfo() {
     phone:          document.getElementById('h-phone').value.trim(),
     email:          document.getElementById('h-email').value.trim(),
     description_ru: document.getElementById('h-desc').value.trim(),
+    object_type:    (document.getElementById('h-type')||{}).value||'',
+    contact_tg:     (document.getElementById('h-tg')||{}).value.trim(),
+    contact_wa:     (document.getElementById('h-wa')||{}).value.trim(),
+    contact_viber:  (document.getElementById('h-viber')||{}).value.trim(),
+    checkin_time:   (document.getElementById('h-checkin')||{}).value||'',
+    checkout_time:  (document.getElementById('h-checkout')||{}).value||'',
+    house_rules:    (document.getElementById('h-rules')||{}).value.trim(),
   };
   try {
     const r = await fetch(`${API}/api/hotels/${myHotelId}`, {method:'PATCH',headers,body:JSON.stringify(body)});
