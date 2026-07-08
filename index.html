@@ -238,6 +238,16 @@ tr:hover td{background:var(--surface)}
           <div class="ical-url" id="ical-url">Загрузка...</div>
           <button class="copy-btn" onclick="copyIcal()">📋 Скопировать ссылку</button>
         </div>
+        <div class="ical-box">
+          <div class="ical-title">🔒 Импорт чужих календарей (защита от овербукинга)</div>
+          <div class="ical-desc">Вставьте iCal-ссылки (.ics) с Booking, Avito, Суточно и других площадок — по одной на строку. Мы будем автоматически закрывать занятые там даты у вас. Так один и тот же день не забронируют дважды.</div>
+          <textarea id="ical-import" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--faint);border-radius:8px;font-size:12px;font-family:monospace;resize:vertical;margin-bottom:10px" placeholder="https://www.booking.com/hotel/…/ical?...&#10;https://www.avito.ru/…/ical/…"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="copy-btn" onclick="saveIcalImport()">💾 Сохранить ссылки</button>
+            <button class="copy-btn" onclick="checkIcalImport()" style="background:#fff;color:var(--green);border:1px solid var(--green)">🔄 Проверить занятость</button>
+          </div>
+          <div id="ical-import-msg" style="display:none;margin-top:10px;font-size:12px;font-weight:600;padding:8px 12px;border-radius:8px"></div>
+        </div>
         <div class="section">
           <div class="sec-head"><span class="sec-title">Как подключить</span></div>
           <div style="padding:1.2rem;font-size:13px;line-height:1.8;color:var(--muted)">
@@ -570,6 +580,38 @@ function copyIcal() {
   showToast('Ссылка скопирована!');
 }
 
+function _icalMsg(text, ok){
+  const m=document.getElementById('ical-import-msg'); if(!m)return;
+  m.textContent=text;
+  m.style.cssText='display:block;margin-top:10px;font-size:12px;font-weight:600;padding:8px 12px;border-radius:8px;'+(ok?'color:#27500A;background:#EAF3DE':'color:#c00;background:#fff0f0');
+}
+async function saveIcalImport(){
+  if(!myHotelId)return;
+  const raw=(document.getElementById('ical-import')||{}).value||'';
+  const urls=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/${myHotelId}`,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ical_import_urls:JSON.stringify(urls)})});
+    if(r.ok){ _icalMsg('✅ Сохранено ('+urls.length+' ссылок). Нажмите «Проверить занятость».', true); }
+    else { _icalMsg('❌ Ошибка сохранения', false); }
+  }catch(e){ _icalMsg('❌ '+e.message, false); }
+}
+async function checkIcalImport(){
+  if(!myHotelId)return;
+  _icalMsg('🔄 Проверяем календари…', true);
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/${myHotelId}/ical-import`,{headers:{'Authorization':'Bearer '+token}});
+    const d=await r.json();
+    if(d.error){ _icalMsg('❌ '+d.error, false); return; }
+    const n=(d.blocked||[]).length;
+    if(!d.sources){ _icalMsg('Ссылки не заданы — вставьте .ics и сохраните.', false); return; }
+    _icalMsg('✅ Проверено '+d.sources+' источников. Занятых дней: '+n+(n?' — они будут закрыты в вашем календаре.':' (свободно).'), true);
+    window._icalBlocked=d.blocked||[];
+    if(typeof calRender==='function')try{calRender();}catch(e){}
+  }catch(e){ _icalMsg('❌ '+e.message, false); }
+}
+
 // ── MANAGE BOOKINGS ──
 async function hotelCancelBooking(bookingNum) {
   if (!confirm('Отменить бронь ' + bookingNum + '?\nГость получит уведомление.')) return;
@@ -648,6 +690,7 @@ async function loadHotelData() {
     if(document.getElementById('h-checkin')) document.getElementById('h-checkin').value = h.checkin_time || '14:00';
     if(document.getElementById('h-checkout')) document.getElementById('h-checkout').value = h.checkout_time || '12:00';
     if(document.getElementById('h-rules')) document.getElementById('h-rules').value = h.house_rules || '';
+    if(document.getElementById('ical-import')){ try{ document.getElementById('ical-import').value=(JSON.parse(h.ical_import_urls||'[]')||[]).join('\n'); }catch(e){} }
     if (h.name_ru) document.getElementById('sb-hotel-name').textContent = h.name_ru;
 
     // Загружаем фото и номера
