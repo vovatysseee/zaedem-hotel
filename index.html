@@ -163,7 +163,7 @@ tr:hover td{background:var(--surface)}
 <div id="app" style="display:none;width:100%">
   <div class="sidebar">
     <div class="sb-logo">
-      <div class="sb-logo-main"><a href="https://zaedem.by" style="color:inherit;text-decoration:none;cursor:pointer">Заедем<em>.by</em></a></div>
+      <div class="sb-logo-main"><span onclick="window.scrollTo({top:0,behavior:'smooth'})" style="cursor:pointer">Заедем<em>.by</em></span></div>
     </div>
     <div class="sb-hotel">
       <div class="sb-hotel-name" id="sb-hotel-name">Мой отель</div>
@@ -734,6 +734,8 @@ async function loadHotelData() {
     // Загружаем фото и номера
     loadHotelPhotos(myHotelId);
     loadHotelRooms(myHotelId);
+    // Если открыта страница календаря (например после F5) — дорисовываем её, когда объект загружен
+    try{ if(sessionStorage.getItem('cab_page')==='calendar' && typeof calInit==='function') calInit(); }catch(e){}
   } catch(e) {
     console.error('loadHotelData error:', e.message);
   }
