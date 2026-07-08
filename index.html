@@ -1077,6 +1077,14 @@ async function calLoad(){
     _calData={};
     (data.days||[]).forEach(d=>{ _calData[d.date]={price:d.price,rooms_left:d.rooms_left}; });
   }catch(e){ console.error('calLoad',e.message); _calData={}; }
+  // Авто-подтягивание чужой занятости (Booking/Avito и др.) для этого номера
+  try{
+    const token2=currentUser?.token;
+    const ri=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/ical-import`,{headers:{'Authorization':'Bearer '+token2}});
+    const rd=await ri.json();
+    window._calExternal={};
+    (rd.blocked||[]).forEach(function(d){ window._calExternal[d]=true; });
+  }catch(e){ window._calExternal={}; }
   calRender();
 }
 
@@ -1101,15 +1109,19 @@ function calRender(){
   for(let day=1;day<=daysIn;day++){
     const dt=_calView.getFullYear()+'-'+String(_calView.getMonth()+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
     const rec=_calData[dt];
-    let bg='#fff',border='1px solid var(--faint)',price=_calBase,closed=false;
-    if(rec){
-      if(parseInt(rec.rooms_left)===0){ bg='var(--red-pale)';closed=true; }
-      else if(rec.price!=null){ bg='var(--green-pale)';price=Math.round(rec.price); }
+    const ext=window._calExternal&&window._calExternal[dt];
+    let bg='#fff',border='1px solid var(--faint)',price=_calBase,closed=false,label='';
+    if(ext){ bg='#fff4e0';border='1px solid #f0c060';closed=true;label='занято (площадка)'; }
+    else if(rec){
+      if(parseInt(rec.rooms_left)===0){ bg='var(--red-pale)';closed=true;label='закрыто'; }
+      else { if(rec.price!=null)price=Math.round(rec.price); bg='var(--green-pale)'; label=(_calTotal>1?rec.rooms_left+'/'+_calTotal+' · ':'')+price+' BYN'; }
+    } else {
+      label=(_calTotal>1?_calTotal+'/'+_calTotal+' · ':'')+price+' BYN';
     }
     const past=dt<todayStr;
-    html+=`<div onclick="${past?'':`calDayClick('${dt}')`}" style="border:${border};background:${bg};border-radius:8px;padding:6px 4px;min-height:54px;cursor:${past?'default':'pointer'};opacity:${past?.4:1};text-align:center">
+    html+=`<div onclick="${past||ext?'':`calDayClick('${dt}')`}" style="border:${border};background:${bg};border-radius:8px;padding:6px 4px;min-height:54px;cursor:${past||ext?'default':'pointer'};opacity:${past?.4:1};text-align:center" ${ext?'title="Занято на другой площадке — подтянуто автоматически"':''}>
       <div style="font-size:13px;font-weight:600">${day}</div>
-      <div style="font-size:10px;color:${closed?'var(--red)':'var(--muted)'};margin-top:2px">${closed?'закрыто':price+' BYN'}</div>
+      <div style="font-size:9.5px;color:${closed?(ext?'#b8860b':'var(--red)'):'var(--muted)'};margin-top:2px;line-height:1.2">${label}</div>
     </div>`;
   }
   grid.innerHTML=html;
