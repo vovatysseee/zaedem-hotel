@@ -342,6 +342,11 @@ tr:hover td{background:var(--surface)}
                 <select id="h-type" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff"><option value="guest">Усадьба / дом</option><option value="apart">Апартаменты / квартира</option><option value="hotel">Отель / гостиница</option></select>
               </div>
               <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Режим календаря</label>
+                <select id="h-syncmode" onchange="syncModeHint()" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff"><option value="own">Веду цены и доступность у вас</option><option value="ical">Тяну занятость с других площадок (iCal)</option><option value="channel">Полная синхронизация (channel manager) — скоро</option></select>
+                <div id="syncmode-hint" style="font-size:11px;color:var(--muted);margin-top:5px"></div>
+              </div>
+              <div>
                 <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Telegram</label>
                 <input id="h-tg" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="@myhouse или t.me/myhouse">
               </div>
@@ -612,6 +617,15 @@ function renderProfile() {
   `;
 }
 
+function syncModeHint(){
+  var v=(document.getElementById('h-syncmode')||{}).value||'own';
+  var hints={
+    own:'Вы сами задаёте цены и доступность в разделе «Цены и доступность». Подходит для эксклюзива.',
+    ical:'Вы ведёте цены у себя/на площадках. Мы автоматически тянем занятость по iCal-ссылкам (в номерах / в разделе iCal). Базовую цену задайте в номере.',
+    channel:'Полная синхронизация цен и остатков через channel manager (Bnovo, TravelLine, RealtyCalendar). Скоро — свяжитесь с нами для подключения.'
+  };
+  var el=document.getElementById('syncmode-hint'); if(el)el.textContent=hints[v]||'';
+}
 function copyIcal() {
   const url = document.getElementById('ical-url').textContent;
   navigator.clipboard?.writeText(url);
@@ -722,6 +736,7 @@ async function loadHotelData() {
     document.getElementById('h-email').value = h.email || '';
     document.getElementById('h-desc').value = h.description_ru || '';
     if(document.getElementById('h-type')) document.getElementById('h-type').value = h.object_type || 'guest';
+    if(document.getElementById('h-syncmode')){ document.getElementById('h-syncmode').value = h.sync_mode || 'own'; syncModeHint(); }
     if(document.getElementById('h-tg')) document.getElementById('h-tg').value = h.contact_tg || '';
     if(document.getElementById('h-wa')) document.getElementById('h-wa').value = h.contact_wa || '';
     if(document.getElementById('h-viber')) document.getElementById('h-viber').value = h.contact_viber || '';
@@ -752,6 +767,7 @@ async function saveHotelInfo() {
     email:          document.getElementById('h-email').value.trim(),
     description_ru: document.getElementById('h-desc').value.trim(),
     object_type:    (document.getElementById('h-type')||{}).value||'',
+    sync_mode:      (document.getElementById('h-syncmode')||{}).value||'own',
     contact_tg:     (document.getElementById('h-tg')||{}).value.trim(),
     contact_wa:     (document.getElementById('h-wa')||{}).value.trim(),
     contact_viber:  (document.getElementById('h-viber')||{}).value.trim(),
