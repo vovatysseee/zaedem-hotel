@@ -195,6 +195,13 @@ tr:hover td{background:var(--surface)}
   <div class="main">
     <div class="topbar">
       <div class="tb-title" id="pageTitle">Дашборд</div>
+      <div style="position:relative;display:inline-block">
+        <button onclick="toggleBell()" style="position:relative;background:none;border:none;cursor:pointer;font-size:18px;padding:4px" title="Уведомления">🔔<span id="bell-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:9px;padding:0 4px;line-height:16px;text-align:center"></span></button>
+        <div id="bell-drop" style="display:none;position:absolute;right:0;top:40px;width:310px;max-height:400px;overflow-y:auto;background:#fff;border:1px solid var(--faint);border-radius:12px;box-shadow:var(--sh);z-index:200">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--faint);font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center">Уведомления<span onclick="markBellRead()" style="font-size:11px;color:var(--green);cursor:pointer;font-weight:600">Прочитать все</span></div>
+          <div id="bell-list"></div>
+        </div>
+      </div>
     </div>
     <div class="content">
 
@@ -550,11 +557,65 @@ async function loadMyBookings() {
     }
     updateStats();
     renderDashboard();
+    try{ bellCollect(); }catch(e){}
   } catch(e) {
     console.warn('loadMyBookings error:', e.message);
     myBookings = [];
   }
 }
+
+// ── КОЛОКОЛЬЧИК партнёра: новые брони, отмены, заезды завтра ──
+function bellSeenTs(){ return parseInt(localStorage.getItem('cab_bell_seen')||'0',10)||0; }
+function bellCollect(){
+  var ev=[]; var now=Date.now(); var day=86400000;
+  (myBookings||[]).forEach(function(b){
+    var ct=new Date(b.created_at||0).getTime();
+    if(b.status==='cancelled'||b.status==='canceled'){
+      ev.push({t:new Date(b.cancelled_at||b.updated_at||b.created_at||0).getTime(),ic:'❌',txt:'Отмена — '+(b.hotel_name||'')});
+    } else {
+      ev.push({t:ct,ic:'🆕',txt:'Новая бронь — '+(b.guest_name||b.hotel_name||'')});
+      // заезд завтра
+      var ci=new Date((b.check_in||'')+'T12:00:00').getTime();
+      if(ci&&ci-now>0&&ci-now<day*1.5){ ev.push({t:now,ic:'📅',txt:'Завтра заезд — '+(b.guest_name||'гость')+' ('+(b.hotel_name||'')+')'}); }
+    }
+  });
+  ev.sort(function(a,b){return b.t-a.t;});
+  window._bellEvents=ev.slice(0,30);
+  var seen=bellSeenTs();
+  var unread=window._bellEvents.filter(function(e){return e.t>seen;}).length;
+  var badge=document.getElementById('bell-badge');
+  if(badge){ if(unread>0){ badge.style.display='block'; badge.textContent=unread>99?'99+':unread; } else badge.style.display='none'; }
+  var list=document.getElementById('bell-list');
+  if(list){
+    if(!window._bellEvents.length){ list.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Пока событий нет</div>'; return; }
+    list.innerHTML=window._bellEvents.map(function(e){
+      var isNew=e.t>seen;
+      var when=e.t?new Date(e.t).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      return '<div style="padding:11px 14px;border-bottom:1px solid var(--faint);display:flex;gap:10px;'+(isNew?'background:rgba(26,92,56,.05)':'')+'">'
+        +'<span style="font-size:16px">'+e.ic+'</span>'
+        +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--ink);line-height:1.4">'+String(e.txt).replace(/</g,'&lt;')+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">'+when+'</div></div>'
+        +(isNew?'<span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0;margin-top:4px"></span>':'')
+        +'</div>';
+    }).join('');
+  }
+}
+function toggleBell(){
+  var d=document.getElementById('bell-drop'); if(!d)return;
+  var show=(d.style.display==='none'||!d.style.display);
+  d.style.display=show?'block':'none';
+  if(show) bellCollect();
+}
+function markBellRead(){
+  var ev=window._bellEvents||[];
+  var maxT=ev.length?Math.max.apply(null,ev.map(function(e){return e.t;})):Date.now();
+  localStorage.setItem('cab_bell_seen',String(maxT));
+  bellCollect();
+}
+document.addEventListener('click',function(e){
+  var d=document.getElementById('bell-drop');
+  if(d&&d.style.display==='block'&&!e.target.closest('#bell-drop')&&!e.target.closest('[onclick="toggleBell()"]')){ d.style.display='none'; }
+});
+setInterval(function(){ if(document.visibilityState==='visible'&&currentUser){ try{ loadMyBookings(); }catch(e){} } }, 30000);
 
 function updateStats() {
   document.getElementById('s-total').textContent = myBookings.length;
