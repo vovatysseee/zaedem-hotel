@@ -667,10 +667,26 @@ function renderBookingsTable(bookings) {
           <td>${statusBadge(b.status)}</td>
           <td style="display:flex;flex-direction:column;gap:4px">
             ${foreign?`<button onclick="mvdAnketa('${b.booking_num}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📋 Анкета МВД</button>`:''}
+            ${(b.source!=='ostrovok')?`<button onclick="contractLink('${b.booking_num}')" style="background:#eef7ee;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🔗 Данные гостя</button>`:''}
             ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${b.booking_num}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Отменить</button>` : '—'}
           </td>
         </tr>`; }).join('')}
     </table>` : '<div class="empty">Броней пока нет</div>';
+}
+// Ссылка «данные гостя для договора» — берём с бэка и копируем, чтобы отправить гостю.
+// Работает по любой брони своих объектов (токен создаётся лениво, если его ещё нет).
+async function contractLink(bookingNum){
+  try{
+    const r=await fetch(`${API}/api/bookings/${encodeURIComponent(bookingNum)}/contract-link`,{headers:{'Authorization':'Bearer '+(token||'')}});
+    const d=await r.json();
+    if(!d.ok||!d.url){ alert(d.error||'Не удалось получить ссылку'); return; }
+    try{
+      await navigator.clipboard.writeText(d.url);
+      alert('Ссылка скопирована — отправьте её гостю:\n\n'+d.url+'\n\nГость заполнит данные для договора, они придут вам сюда.');
+    }catch(e){
+      prompt('Ссылка для данных гостя (скопируйте вручную):', d.url);
+    }
+  }catch(e){ alert('Сервис недоступен, попробуйте позже'); }
 }
 // Анкета для МВД — печатная форма с данными иностранных гостей (авто-заполнена)
 function mvdAnketa(bookingNum){
