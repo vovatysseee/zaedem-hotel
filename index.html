@@ -1,842 +1,1416 @@
-const router = require('express').Router();
-const pool = require('../../config/db');
-const { auth, optionalAuth, role } = require('../middleware/auth');
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Заедем.by — Кабинет отельера</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' fill='%23c9f135' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f4f2ee;--white:#fff;--surface:#faf9f6;
+  --ink:#111;--ink2:#2a2a2a;--muted:#6b6b6b;--hint:#aaa;--faint:#e8e4dc;--faint2:#d8d4cc;
+  --green:#1a5c38;--green2:#246b44;--green3:#2f8056;--green-pale:#e8f4ed;--green-dim:rgba(26,92,56,.08);
+  --lime:#c9f135;--lime2:#d9f554;
+  --blue:#2563eb;--blue-pale:#eff6ff;
+  --amber:#d97706;--amber-pale:#fffbeb;
+  --red:#dc2626;--red-pale:#fef2f2;
+  --r:10px;--rl:16px;
+  --sh:0 1px 6px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Golos Text',sans-serif;background:var(--bg);color:var(--ink);min-height:100vh;display:flex}
+button{cursor:pointer;font-family:inherit}
 
-// ─── Авто-миграция: новые колонки объекта (идемпотентно) ───
-(async () => {
+/* LOGIN */
+.login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;background:var(--green)}
+.login-box{background:#fff;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.login-logo{font-family:'Unbounded',sans-serif;font-size:1.4rem;font-weight:800;color:var(--green);margin-bottom:4px}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:32px}
+.login-field{margin-bottom:16px}
+.login-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.login-field input{width:100%;padding:12px 14px;border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;font-family:inherit;outline:none;transition:.2s}
+.login-field input:focus{border-color:var(--green)}
+.login-btn{width:100%;padding:14px;background:var(--green);color:#fff;border:none;border-radius:var(--r);font-size:15px;font-weight:700;font-family:inherit;margin-top:8px}
+.login-err{color:var(--red);font-size:13px;margin-top:10px;text-align:center}
+.login-hint{font-size:12px;color:var(--muted);margin-top:16px;text-align:center}
+.login-hint a{color:var(--green);text-decoration:none}
+
+/* SIDEBAR */
+.sidebar{width:230px;background:var(--green);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
+.sb-logo{padding:20px 18px 16px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sb-logo-main{font-family:'Unbounded',sans-serif;font-size:1rem;font-weight:800;color:var(--lime)}
+.sb-logo-main em{color:#fff;font-style:normal}
+.sb-hotel{padding:14px 18px;background:rgba(255,255,255,.07);border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-hotel-name{font-size:13px;font-weight:600;color:#fff;margin-bottom:2px}
+.sb-hotel-meta{font-size:11px;color:rgba(255,255,255,.5)}
+.sb-nav{padding:12px 0;flex:1;overflow-y:auto}
+.sb-section{padding:6px 18px 3px;font-size:10px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,.3);font-weight:700}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 18px;font-size:13px;color:rgba(255,255,255,.7);cursor:pointer;transition:.15s;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav-item.active{background:rgba(255,255,255,.1);color:#fff;border-left-color:var(--lime)}
+.nav-badge{margin-left:auto;background:var(--lime);color:var(--green);font-size:10px;font-weight:800;padding:1px 7px;border-radius:10px}
+.sb-bottom{padding:14px 18px;border-top:1px solid rgba(255,255,255,.08)}
+.sb-user{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.sb-ava{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff}
+.sb-user-info .name{font-size:12px;font-weight:600;color:#fff}
+.sb-user-info .role{font-size:10px;color:rgba(255,255,255,.5)}
+.logout-btn{width:100%;padding:8px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.5);border:none;border-radius:8px;font-size:11px;font-weight:600}
+.logout-btn:hover{background:rgba(220,38,38,.2);color:#fca5a5}
+
+/* MAIN */
+.main{margin-left:230px;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid var(--faint);padding:0 1.5rem;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;box-shadow:var(--sh)}
+.tb-title{font-family:'Unbounded',sans-serif;font-size:.85rem;font-weight:700;color:var(--green)}
+.content{padding:1.5rem;flex:1}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem}
+.stat{background:#fff;border:1px solid var(--faint);border-radius:var(--rl);padding:1.2rem;box-shadow:var(--sh)}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);font-weight:700;margin-bottom:8px}
+.stat-val{font-family:'Unbounded',sans-serif;font-size:1.5rem;font-weight:800;margin-bottom:4px}
+.stat-sub{font-size:11px;color:var(--muted)}
+.c-green{color:var(--green)}
+.c-amber{color:var(--amber)}
+.c-blue{color:var(--blue)}
+
+/* SECTION */
+.section{background:#fff;border:1px solid var(--faint);border-radius:var(--rl);margin-bottom:1.5rem;overflow:hidden;box-shadow:var(--sh)}
+.sec-head{padding:1rem 1.2rem;border-bottom:1px solid var(--faint);display:flex;align-items:center;justify-content:space-between}
+.sec-title{font-size:13px;font-weight:700}
+table{width:100%;border-collapse:collapse}
+th{padding:10px 12px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);font-weight:700;border-bottom:1px solid var(--faint);background:var(--surface)}
+td{padding:10px 12px;font-size:12px;border-bottom:1px solid var(--faint)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--surface)}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700}
+.badge-green{background:var(--green-pale);color:var(--green)}
+.badge-amber{background:var(--amber-pale);color:var(--amber)}
+.badge-red{background:var(--red-pale);color:var(--red)}
+.badge-blue{background:var(--blue-pale);color:var(--blue)}
+.badge-gray{background:var(--faint);color:var(--muted)}
+.empty{padding:3rem;text-align:center;color:var(--muted);font-size:13px}
+.loading{padding:3rem;text-align:center;color:var(--muted)}
+.spin{display:inline-block;width:20px;height:20px;border:2px solid var(--faint);border-top-color:var(--green);border-radius:50%;animation:spin .6s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ICAL */
+.ical-box{background:var(--green-pale);border:1px solid rgba(26,92,56,.15);border-radius:var(--rl);padding:1.2rem;margin-bottom:1.5rem}
+.ical-title{font-size:13px;font-weight:700;color:var(--green);margin-bottom:6px}
+.ical-desc{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5}
+.ical-url{background:#fff;border:1px solid var(--faint);border-radius:8px;padding:8px 12px;font-size:11px;font-family:monospace;color:var(--ink);word-break:break-all;margin-bottom:10px}
+.copy-btn{padding:7px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700}
+
+/* PAGE */
+.page{display:none}
+.page.on{display:block}
+
+/* TOAST */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;transform:translateY(20px);opacity:0;transition:.3s}
+.toast.show{transform:translateY(0);opacity:1}
+/* Модальное окно номера */
+.room-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px}
+.room-modal-overlay.open{display:flex}
+.room-modal{background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.room-modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--faint);position:sticky;top:0;background:#fff;z-index:1}
+.room-modal-title{font-family:'Unbounded',sans-serif;font-size:14px;font-weight:800}
+.room-modal-close{width:32px;height:32px;border:none;background:var(--faint);border-radius:8px;cursor:pointer;font-size:16px}
+.room-modal-body{padding:24px}
+.rm-field{margin-bottom:16px}
+.rm-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px}
+.rm-input{width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;outline:none;box-sizing:border-box}
+.rm-input:focus{border-color:var(--green)}
+.rm-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rm-grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.rm-amenities{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.rm-amen{padding:6px 10px;border:1.5px solid var(--faint);border-radius:8px;cursor:pointer;font-size:12px;transition:.15s;user-select:none}
+.rm-amen.on{border-color:var(--green);background:#f0f8f0;color:var(--green);font-weight:600}
+.rm-bed-select{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.rm-bed-opt{padding:7px 14px;border:1.5px solid var(--faint);border-radius:8px;cursor:pointer;font-size:12px;transition:.15s}
+.rm-bed-opt.on{border-color:var(--green);background:#f0f8f0;color:var(--green);font-weight:600}
+.rm-photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-top:8px}
+.rm-photo-item{position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1.5px solid var(--faint)}
+.rm-photo-item img{width:100%;height:100%;object-fit:cover}
+.rm-photo-del{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1}
+.room-modal-foot{padding:16px 24px;border-top:1px solid var(--faint);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff}
+.rm-btn{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit}
+.rm-btn-cancel{background:var(--faint);color:var(--ink)}
+.rm-btn-save{background:var(--green);color:#c9f135}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">Заедем<span style="color:var(--lime)">.by</span></div>
+    <div class="login-sub">Кабинет отельера</div>
+    <div class="login-field">
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="hotel@example.com">
+    </div>
+    <div class="login-field">
+      <label>Пароль</label>
+      <input type="password" id="loginPass" placeholder="••••••••">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Войти</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-hint">Нет аккаунта? <a href="https://zaedem.by">Подать заявку →</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none;width:100%">
+  <div class="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-main"><span onclick="window.scrollTo({top:0,behavior:'smooth'})" style="cursor:pointer">Заедем<em>.by</em></span></div>
+    </div>
+    <div class="sb-hotel">
+      <div class="sb-hotel-name" id="sb-hotel-name">Мой отель</div>
+      <div class="sb-hotel-meta" id="sb-hotel-email">—</div>
+    </div>
+    <div class="sb-nav">
+      <div class="sb-section">Главное</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)">📊 Дашборд</div>
+      <div class="nav-item" onclick="showPage('bookings',this)">📋 Мои брони <span class="nav-badge" id="nb-new">0</span></div>
+      <div class="sb-section">Управление</div>
+      <div class="nav-item" onclick="showPage('hotel',this)">🏨 Мой отель</div>
+      <div class="nav-item" onclick="showPage('calendar',this)">💰 Цены и доступность</div>
+      <div class="sb-section">Настройки</div>
+      <div class="nav-item" onclick="showPage('ical',this)">📅 Календарь (iCal)</div>
+      <div class="nav-item" onclick="showPage('profile',this)">⚙️ Профиль</div>
+    </div>
+    <div class="sb-bottom">
+      <div class="sb-user">
+        <div class="sb-ava" id="sb-ava">О</div>
+        <div class="sb-user-info">
+          <div class="name" id="sb-name">Отельер</div>
+          <div class="role">Владелец</div>
+        </div>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">🚪 Выйти</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="tb-title" id="pageTitle">Дашборд</div>
+      <div style="position:relative;display:inline-block">
+        <button onclick="toggleBell()" style="position:relative;background:none;border:none;cursor:pointer;font-size:18px;padding:4px" title="Уведомления">🔔<span id="bell-badge" style="display:none;position:absolute;top:-2px;right:-2px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:9px;padding:0 4px;line-height:16px;text-align:center"></span></button>
+        <div id="bell-drop" style="display:none;position:absolute;right:0;top:40px;width:310px;max-height:400px;overflow-y:auto;background:#fff;border:1px solid var(--faint);border-radius:12px;box-shadow:var(--sh);z-index:200">
+          <div style="padding:12px 14px;border-bottom:1px solid var(--faint);font-weight:700;font-size:13px;display:flex;justify-content:space-between;align-items:center">Уведомления<span onclick="markBellRead()" style="font-size:11px;color:var(--green);cursor:pointer;font-weight:600">Прочитать все</span></div>
+          <div id="bell-list"></div>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="page on" id="page-dashboard">
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-label">Броней всего</div>
+            <div class="stat-val c-green" id="s-total">—</div>
+            <div class="stat-sub">за всё время</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Новых броней</div>
+            <div class="stat-val c-amber" id="s-new">—</div>
+            <div class="stat-sub">ожидают подтверждения</div>
+          </div>
+          <div class="stat">
+            <div class="stat-label">Выручка</div>
+            <div class="stat-val c-green" id="s-rev">—</div>
+            <div class="stat-sub">общая сумма</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="sec-head"><span class="sec-title">Последние брони</span></div>
+          <div id="dash-bookings"><div class="loading"><div class="spin"></div><br>Загрузка...</div></div>
+        </div>
+      </div>
+
+      <!-- BOOKINGS -->
+      <div class="page" id="page-bookings">
+        <div class="section">
+          <div class="sec-head"><span class="sec-title">Мои брони</span></div>
+          <div id="bookings-table"><div class="loading"><div class="spin"></div><br>Загрузка...</div></div>
+        </div>
+      </div>
+
+      <!-- ICAL -->
+      <div class="page" id="page-ical">
+        <div class="ical-box">
+          <div class="ical-title">📅 Синхронизация календаря</div>
+          <div class="ical-desc">Добавьте эту ссылку в Google Calendar, Apple Calendar или любое другое приложение — все брони автоматически появятся в вашем календаре. Обновление каждые 10 минут.</div>
+          <div class="ical-url" id="ical-url">Загрузка...</div>
+          <button class="copy-btn" onclick="copyIcal()">📋 Скопировать ссылку</button>
+        </div>
+        <div class="ical-box">
+          <div class="ical-title">🔒 Импорт чужих календарей (защита от овербукинга)</div>
+          <div class="ical-desc">Вставьте iCal-ссылки (.ics) с Booking, Avito, Суточно и других площадок — по одной на строку. Мы будем автоматически закрывать занятые там даты у вас. Так один и тот же день не забронируют дважды.</div>
+          <textarea id="ical-import" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--faint);border-radius:8px;font-size:12px;font-family:monospace;resize:vertical;margin-bottom:10px" placeholder="https://www.booking.com/hotel/…/ical?...&#10;https://www.avito.ru/…/ical/…"></textarea>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="copy-btn" onclick="saveIcalImport()">💾 Сохранить ссылки</button>
+            <button class="copy-btn" onclick="checkIcalImport()" style="background:#fff;color:var(--green);border:1px solid var(--green)">🔄 Проверить занятость</button>
+          </div>
+          <div id="ical-import-msg" style="display:none;margin-top:10px;font-size:12px;font-weight:600;padding:8px 12px;border-radius:8px"></div>
+        </div>
+        <div class="section">
+          <div class="sec-head"><span class="sec-title">Как подключить</span></div>
+          <div style="padding:1.2rem;font-size:13px;line-height:1.8;color:var(--muted)">
+            <b style="color:var(--ink)">Google Calendar:</b> Другие календари → + → По URL → вставьте ссылку<br>
+            <b style="color:var(--ink)">Apple Calendar:</b> Файл → Новая подписка на календарь → вставьте ссылку<br>
+            <b style="color:var(--ink)">Outlook:</b> Добавить календарь → Подписаться из Интернета → вставьте ссылку
+          </div>
+        </div>
+      </div>
+
+      <!-- ЦЕНЫ И ДОСТУПНОСТЬ -->
+      <div class="page" id="page-calendar">
+        <div class="section">
+          <div class="sec-head"><span class="sec-title">Цены и доступность</span></div>
+          <div style="padding:1.2rem">
+            <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+              Выберите номер, затем кликайте по датам в календаре, чтобы задать цену или закрыть день для броней.
+              Без изменений действует базовая цена номера.
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Номер</label>
+              <select id="cal-room" onchange="calLoad()" style="width:100%;max-width:360px;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit"></select>
+            </div>
+
+            <div id="cal-controls" style="display:none">
+              <div style="display:flex;gap:18px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
+                <button onclick="calMonth(-1)" style="background:var(--faint);border:none;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px">‹</button>
+                <div id="cal-month-label" style="font-weight:700;font-size:16px;min-width:160px;text-align:center"></div>
+                <button onclick="calMonth(1)" style="background:var(--faint);border:none;width:36px;height:36px;border-radius:8px;cursor:pointer;font-size:18px">›</button>
+                <div style="margin-left:auto;font-size:12px;color:var(--muted)">Базовая цена: <b id="cal-base">—</b> BYN</div>
+              </div>
+
+              <div id="cal-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;max-width:560px"></div>
+
+              <div style="display:flex;gap:14px;align-items:center;margin-top:14px;font-size:12px;color:var(--muted);flex-wrap:wrap">
+                <span><span style="display:inline-block;width:12px;height:12px;background:var(--green-pale);border-radius:3px;vertical-align:-2px"></span> своя цена</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:var(--red-pale);border-radius:3px;vertical-align:-2px"></span> закрыто</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#fff;border:1px solid var(--faint);border-radius:3px;vertical-align:-2px"></span> базовая цена</span>
+              </div>
+
+              <div style="background:var(--surface);border:1px solid var(--faint);border-radius:12px;padding:16px;margin-top:18px;max-width:560px">
+                <div style="font-weight:700;font-size:14px;margin-bottom:12px">Быстрая настройка периода</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">С даты</label><input type="date" id="cal-from" style="width:100%;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">По дату</label><input type="date" id="cal-to" style="width:100%;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Цена (BYN)</label><input type="number" id="cal-price" placeholder="напр. 120" style="width:130px;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                  <button onclick="calApplyRange(false)" style="background:var(--green);color:#c9f135;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Задать цену</button>
+                  <button onclick="calApplyRange(true)" style="background:var(--red);color:#fff;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Закрыть даты</button>
+                </div>
+                <div style="border-top:1px solid var(--faint);margin:14px 0"></div>
+                <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap">
+                  <div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:4px">Наценка на выходные (пт-сб), %</label><input type="number" id="cal-wknd" placeholder="напр. 20" style="width:160px;padding:8px;border:1.5px solid var(--faint);border-radius:8px;font-family:inherit"></div>
+                  <button onclick="calWeekend()" style="background:var(--green2);color:#c9f135;border:none;padding:9px 16px;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px">Применить к выходным</button>
+                </div>
+                <div id="cal-msg" style="display:none;margin-top:12px;padding:9px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- МОЙ ОТЕЛЬ -->
+      <div class="page" id="page-hotel">
+        <div class="section">
+          <div class="sec-head">
+            <span class="sec-title">Информация об отеле</span>
+            <button onclick="saveHotelInfo()" style="background:var(--green);color:#c9f135;border:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">💾 Сохранить изменения</button>
+          </div>
+          <div style="padding:1.2rem">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Название отеля</label>
+                <input id="h-name" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="Название отеля">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Адрес</label>
+                <input id="h-address" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="Адрес">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Телефон</label>
+                <input id="h-phone" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375 XX XXX-XX-XX">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Email</label>
+                <input id="h-email" type="email" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="hotel@example.com">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Тип объекта</label>
+                <select id="h-type" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff"><option value="guest">Усадьба / дом</option><option value="apart">Апартаменты / квартира</option><option value="hotel">Отель / гостиница</option></select>
+              </div>
+            </div>
+            <div style="margin:22px 0 8px">
+              <label style="font-size:13px;font-weight:700;color:var(--green);display:block;margin-bottom:4px">Как вы работаете с нами</label>
+              <div style="font-size:12px;color:var(--muted);margin-bottom:12px">Выберите, откуда берётся календарь вашего объекта. Комиссия — только с состоявшихся броней, никаких платежей заранее.</div>
+              <input type="hidden" id="h-syncmode" value="own">
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px">
+                <div class="mode-card" data-mode="own" onclick="pickSyncMode('own')" style="cursor:pointer;border:2px solid var(--green);background:rgba(26,92,56,.05);border-radius:14px;padding:16px">
+                  <div style="font-size:22px;margin-bottom:8px">🏡</div>
+                  <div style="font-weight:700;font-size:14px;color:var(--green);margin-bottom:6px">Веду у вас</div>
+                  <div style="font-size:12px;color:#555;line-height:1.5">Сам ставлю цены и доступность в кабинете. Идеально для усадеб, квартир и эксклюзивных объектов.</div>
+                  <div class="mode-check" style="margin-top:10px;font-size:12px;font-weight:700;color:var(--green)">✓ Выбрано</div>
+                </div>
+                <div class="mode-card" data-mode="ical" onclick="pickSyncMode('ical')" style="cursor:pointer;border:2px solid var(--faint);background:#fff;border-radius:14px;padding:16px">
+                  <div style="font-size:22px;margin-bottom:8px">🔄</div>
+                  <div style="font-weight:700;font-size:14px;color:#111;margin-bottom:6px">Тяну занятость (iCal)</div>
+                  <div style="font-size:12px;color:#555;line-height:1.5">Веду цены у себя / на площадках, а вы автоматически закрываете занятые даты по iCal. Цену задаю базовую.</div>
+                  <div class="mode-check" style="margin-top:10px;font-size:12px;font-weight:700;color:var(--green);display:none">✓ Выбрано</div>
+                </div>
+                <div class="mode-card" data-mode="channel" onclick="pickSyncMode('channel')" style="cursor:pointer;border:2px solid var(--faint);background:#fafafa;border-radius:14px;padding:16px;opacity:.85">
+                  <div style="font-size:22px;margin-bottom:8px">⚡</div>
+                  <div style="font-weight:700;font-size:14px;color:#111;margin-bottom:6px">Полная синхра <span style="font-size:10px;background:var(--lime);color:var(--green);padding:2px 7px;border-radius:6px;font-weight:800">СКОРО</span></div>
+                  <div style="font-size:12px;color:#555;line-height:1.5">Цены и остатки через channel manager (Bnovo, TravelLine, RealtyCalendar). Всё синхронно, ничего не ведёте вручную.</div>
+                  <div class="mode-check" style="margin-top:10px;font-size:12px;font-weight:700;color:var(--green);display:none">✓ Выбрано</div>
+                </div>
+              </div>
+            </div>
+            <div style="display:none">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Telegram</label>
+                <input id="h-tg" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="@myhouse или t.me/myhouse">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">WhatsApp (номер)</label>
+                <input id="h-wa" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375291234567">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Viber (номер)</label>
+                <input id="h-viber" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375291234567">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Время заезда</label>
+                <input id="h-checkin" type="time" value="14:00" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit">
+              </div>
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Время выезда</label>
+                <input id="h-checkout" type="time" value="12:00" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit">
+              </div>
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Описание</label>
+              <textarea id="h-desc" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Описание отеля..."></textarea>
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Правила дома (видят гости)</label>
+              <textarea id="h-rules" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Можно с животными · Тихий час с 23:00 · Не курить в помещении · Заезд самостоятельный по коду"></textarea>
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Правила отмены (видят гости при отмене)</label>
+              <textarea id="h-cancel" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Например: бесплатная отмена за 3 дня до заезда · позже удерживается стоимость 1 ночи · при неявке — без возврата"></textarea>
+            <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="sec-head">
+            <span class="sec-title">Фотографии</span>
+          </div>
+          <div style="padding:1.2rem">
+            <div id="hotel-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <input id="photo-url-input" type="url" placeholder="Вставьте ссылку на фото (https://...)" style="flex:1;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:13px;font-family:inherit">
+              <button onclick="addPhotoByUrl()" style="background:var(--green);color:#c9f135;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap">📷 Добавить фото</button>
+            </div>
+            <div id="upload-progress" style="margin-top:6px;font-size:13px;color:var(--muted)"></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="sec-head">
+            <span class="sec-title">Номера и цены</span>
+            <button onclick="addRoom()" style="background:var(--green);color:#c9f135;border:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">+ Добавить номер</button>
+          </div>
+          <div id="rooms-list" style="padding:1.2rem">
+            <div class="loading"><div class="spin"></div><br>Загрузка...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PROFILE -->
+      <div class="page" id="page-profile">
+        <div class="section">
+          <div class="sec-head"><span class="sec-title">Профиль отельера</span></div>
+          <div style="padding:1.2rem" id="profile-content">
+            <div class="loading"><div class="spin"></div><br>Загрузка...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'https://api.zaedem.by';
+let currentUser = null;
+let myBookings = [];
+
+// ── AUTH ──
+async function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if (!email || !pass) { showErr('Заполните все поля'); return; }
   try {
-    await pool.query(`
-      ALTER TABLE hotels
-        ADD COLUMN IF NOT EXISTS object_type      TEXT DEFAULT 'guest',
-        ADD COLUMN IF NOT EXISTS contact_tg        TEXT,
-        ADD COLUMN IF NOT EXISTS contact_wa        TEXT,
-        ADD COLUMN IF NOT EXISTS contact_viber     TEXT,
-        ADD COLUMN IF NOT EXISTS checkin_time      TEXT DEFAULT '14:00',
-        ADD COLUMN IF NOT EXISTS checkout_time     TEXT DEFAULT '12:00',
-        ADD COLUMN IF NOT EXISTS house_rules       TEXT,
-        ADD COLUMN IF NOT EXISTS status            TEXT DEFAULT 'active',
-        ADD COLUMN IF NOT EXISTS ical_import_urls  TEXT,
-        ADD COLUMN IF NOT EXISTS sync_mode         TEXT DEFAULT 'own',
-        ADD COLUMN IF NOT EXISTS claim_token       TEXT,
-        ADD COLUMN IF NOT EXISTS claimed_at        TIMESTAMP,
-        ADD COLUMN IF NOT EXISTS source_listing_url TEXT
-    `);
-    await pool.query(`CREATE INDEX IF NOT EXISTS idx_hotels_claim_token ON hotels(claim_token)`).catch(()=>{});
-    await pool.query(`ALTER TABLE room_types ADD COLUMN IF NOT EXISTS ical_import_urls TEXT`).catch(()=>{});
-    console.log('✅ hotels: колонки объекта готовы');
-  } catch (e) { console.error('hotels migrate:', e.message); }
-})();
-
-// ─── GET /api/hotels ──────────────────────────────────
-// Поиск отелей: ?city=Минск&checkin=&checkout=&guests=2&category=hotel&sort=price_asc
-router.get('/', optionalAuth, async (req, res) => {
-  const {
-    city, checkin, checkout, guests = 1,
-    category, stars, min_price, max_price,
-    sort = 'rating_desc', page = 1, limit = 20
-  } = req.query;
-
-  // Админ (авторизованный) может запросить все статусы: ?is_active=all — видит и объекты на паузе.
-  // Публичный сайт всегда получает только активные (is_active=TRUE) — поведение НЕ меняется.
-  const isAdmin = req.user && req.user.role === 'admin';
-  const wantAll = isAdmin && String(req.query.is_active) === 'all';
-
-  const conditions = [];
-  const params = [];
-  let p = 1;
-
-  if (!wantAll) {
-    conditions.push('h.is_active = TRUE');
-    // Двойная защита: у старых записей пауза могла быть только в status (is_active остался true).
-    // Публично отдаём ТОЛЬКО статус active (или незаданный у ostrovok-справочника).
-    conditions.push(`COALESCE(h.status, 'active') = 'active'`);
-  }
-
-  // РАЗДЕЛЕНИЕ по источнику (для админки — две вкладки):
-  //   ?source=direct   → только ТВОИ объекты (партнёры + добавленные вручную), ими управляешь.
-  //   ?source=ostrovok → справочник Островка (только просмотр).
-  //   без source       → публичное поведение: скрываем ostrovok-справочник (кроме include_ostrovok=1).
-  const srcReq = String(req.query.source || '').trim();
-  if (isAdmin && srcReq === 'direct') {
-    conditions.push(`COALESCE(h.source, 'direct') <> 'ostrovok'`);
-  } else if (isAdmin && srcReq === 'ostrovok') {
-    conditions.push(`h.source = 'ostrovok'`);
-  } else if (req.query.include_ostrovok !== '1' && !wantAll) {
-    // Отели из дампа Ostrovok — справочник для живого поиска, в публичном списке не показываем.
-    conditions.push(`COALESCE(h.source, 'direct') <> 'ostrovok'`);
-  }
-
-  if (city) {
-    conditions.push(`(c.name_ru ILIKE $${p} OR c.name_en ILIKE $${p})`);
-    params.push(`%${city}%`); p++;
-  }
-  if (category) {
-    conditions.push(`h.category = $${p}`);
-    params.push(category); p++;
-  }
-  if (stars) {
-    conditions.push(`h.stars = $${p}`);
-    params.push(parseInt(stars)); p++;
-  }
-
-  const orderMap = {
-    price_asc: 'min_price ASC',
-    price_desc: 'min_price DESC',
-    rating_desc: 'h.rating DESC',
-    reviews_desc: 'h.reviews_count DESC',
-  };
-  const orderBy = orderMap[sort] || 'h.rating DESC';
-  const offset = (parseInt(page) - 1) * parseInt(limit);
-
-  const whereClause = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
-
-  const query = `
-    SELECT
-      h.id, h.name_ru, h.name_en, h.category, h.stars,
-      h.description_ru, h.description_en, h.address,
-      h.lat, h.lng, h.rating, h.reviews_count, h.is_featured,
-      h.ostrovok_hid,
-      h.check_in_time, h.check_out_time,
-      c.name_ru AS city_ru, c.name_en AS city_en,
-      MIN(rt.base_price) AS min_price,
-      MAX(rt.base_price) AS max_price,
-      COALESCE(
-        json_agg(DISTINCT jsonb_build_object('key', a.key,'name_ru',a.name_ru,'icon',a.icon))
-        FILTER (WHERE a.key IS NOT NULL), '[]'
-      ) AS amenities,
-      (SELECT url FROM hotel_photos hp WHERE hp.hotel_id = h.id AND hp.is_cover = TRUE LIMIT 1) AS cover_photo,
-      COUNT(*) OVER() AS total_count
-    FROM hotels h
-    JOIN cities c ON h.city_id = c.id
-    LEFT JOIN room_types rt ON rt.hotel_id = h.id AND rt.is_active = TRUE
-    LEFT JOIN hotel_amenities ha ON ha.hotel_id = h.id
-    LEFT JOIN amenities a ON a.id = ha.amenity_id
-    ${whereClause}
-    GROUP BY h.id, c.name_ru, c.name_en
-    ${min_price ? `HAVING MIN(rt.base_price) >= ${parseFloat(min_price)}` : ''}
-    ${max_price ? `${min_price ? 'AND' : 'HAVING'} MIN(rt.base_price) <= ${parseFloat(max_price)}` : ''}
-    ORDER BY ${orderBy}
-    LIMIT $${p} OFFSET $${p+1}
-  `;
-  params.push(parseInt(limit), offset);
-
-  try {
-    const { rows } = await pool.query(query, params);
-    const total = rows[0]?.total_count || 0;
-    res.json({
-      hotels: rows.map(({ total_count, ...h }) => h),
-      pagination: {
-        total: parseInt(total),
-        page: parseInt(page),
-        limit: parseInt(limit),
-        pages: Math.ceil(total / limit),
-      },
+    const r = await fetch(`${API}/api/users/login`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pass})
     });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Ошибка поиска отелей' });
-  }
-});
-
-// ─── GET /api/hotels/owner/my ─────────────────────────
-// Мои отели (для кабинета отельера)
-router.get('/owner/my', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  const ownerWhere = req.user.role === 'admin' ? '' : 'WHERE h.owner_id = $1::uuid';
-  const params = req.user.role === 'admin' ? [] : [req.user.id];
-  const { rows } = await pool.query(`
-    SELECT h.id, h.name_ru, h.category, h.stars, h.is_active,
-           h.rating, h.reviews_count, c.name_ru AS city,
-           COUNT(DISTINCT b.id) AS total_bookings,
-           SUM(CASE WHEN b.status='confirmed' THEN b.total_price ELSE 0 END) AS total_revenue
-    FROM hotels h
-    JOIN cities c ON h.city_id = c.id
-    LEFT JOIN bookings b ON b.hotel_id = h.id::text
-    ${ownerWhere}
-    GROUP BY h.id, c.name_ru
-    ORDER BY h.created_at DESC
-  `, params);
-  res.json(rows);
-});
-
-// ─── GET /api/hotels/ostrovok/:hid ────────────────────
-// Найти наш отель по Ostrovok HID
-router.get('/ostrovok/:hid', async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      'SELECT id, name_ru, ostrovok_hid FROM hotels WHERE ostrovok_hid=$1',
-      [parseInt(req.params.hid)]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Отель не найден' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── POST /api/hotels/rooms — создать номер ──────────
-router.post('/rooms', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const { hotel_id, name_ru, name_en, capacity, beds, size_sqm, base_price, total_rooms, description_ru } = req.body;
-    if (!hotel_id || !name_ru || !base_price) {
-      return res.status(400).json({ error: 'hotel_id, name_ru, base_price обязательны' });
+    const d = await r.json();
+    if (!r.ok || !d.success) { showErr(d.error || 'Неверный email или пароль'); return; }
+    if (d.user.role !== 'hotelowner' && d.user.role !== 'admin') {
+      showErr('Доступ только для отельеров'); return;
     }
-    // Проверяем права
-    const { rows: [hotel] } = await pool.query('SELECT owner_id FROM hotels WHERE id=$1', [hotel_id]);
-    if (!hotel) return res.status(404).json({ error: 'Отель не найден' });
-    if (req.user.role !== 'admin' && String(hotel.owner_id) !== String(req.user.id)) {
-      return res.status(403).json({ error: 'Нет прав' });
-    }
-    const { rows: [room] } = await pool.query(`
-      INSERT INTO room_types
-        (hotel_id, name_ru, name_en, capacity, beds, size_sqm, base_price, total_rooms, description_ru, is_active)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,true) RETURNING *
-    `, [hotel_id, name_ru, name_en||name_ru, capacity||2, beds||1, size_sqm||0, base_price, total_rooms||1, description_ru||'']);
-    res.status(201).json({ ok: true, room });
-  } catch (err) {
-    console.error('create room error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── PATCH /api/hotels/rooms/:id — редактировать номер ─
-router.patch('/rooms/:id', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const { rows: [room] } = await pool.query(
-      'SELECT rt.id, h.owner_id FROM room_types rt JOIN hotels h ON h.id = rt.hotel_id WHERE rt.id=$1',
-      [req.params.id]
-    );
-    if (!room) return res.status(404).json({ error: 'Номер не найден' });
-    if (req.user.role !== 'admin' && String(room.owner_id) !== String(req.user.id)) {
-      return res.status(403).json({ error: 'Нет прав' });
-    }
-    const fields = ['name_ru','name_en','capacity','beds','size_sqm','base_price','total_rooms','description_ru','is_active','ical_import_urls'];
-    const updates = [];
-    const values = [];
-    let i = 1;
-    for (const f of fields) {
-      if (req.body[f] !== undefined) { updates.push(`${f}=$${i++}`); values.push(req.body[f]); }
-    }
-    if (!updates.length) return res.status(400).json({ error: 'Нет данных' });
-    values.push(req.params.id);
-    const { rows: [updated] } = await pool.query(
-      `UPDATE room_types SET ${updates.join(',')} WHERE id=$${i} RETURNING *`, values
-    );
-    res.json({ ok: true, room: updated });
-  } catch (err) {
-    console.error('update room error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── DELETE /api/hotels/rooms/:id — удалить номер ─────
-router.delete('/rooms/:id', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const { rows: [room] } = await pool.query(
-      'SELECT rt.id, h.owner_id FROM room_types rt JOIN hotels h ON h.id = rt.hotel_id WHERE rt.id=$1',
-      [req.params.id]
-    );
-    if (!room) return res.status(404).json({ error: 'Номер не найден' });
-    if (req.user.role !== 'admin' && String(room.owner_id) !== String(req.user.id)) {
-      return res.status(403).json({ error: 'Нет прав' });
-    }
-    await pool.query('UPDATE room_types SET is_active=false WHERE id=$1', [req.params.id]);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ══════════════════════════════════════════════════════
-// КАЛЕНДАРЬ ЦЕН И ДОСТУПНОСТИ (для кабинета отельера)
-// ══════════════════════════════════════════════════════
-
-// Проверка, что номер принадлежит этому отельеру
-async function ownRoomCheck(roomId, user) {
-  const { rows } = await pool.query(
-    'SELECT rt.id, rt.base_price, rt.total_rooms, h.owner_id FROM room_types rt JOIN hotels h ON h.id = rt.hotel_id WHERE rt.id=$1',
-    [roomId]
-  );
-  if (!rows.length) return { error: 'Номер не найден', code: 404 };
-  if (user.role !== 'admin' && String(rows[0].owner_id) !== String(user.id)) {
-    return { error: 'Нет прав', code: 403 };
-  }
-  return { room: rows[0] };
+    currentUser = {...d.user, token: d.token};
+    sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
+    initApp();
+  } catch(e) { showErr('Ошибка соединения'); }
 }
 
-// ─── GET /api/hotels/rooms/:roomId/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD ──
-// Календарь цен и наличия по номеру за период (для отельера)
-router.get('/rooms/:roomId/calendar', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const chk = await ownRoomCheck(req.params.roomId, req.user);
-    if (chk.error) return res.status(chk.code).json({ error: chk.error });
-
-    const today = new Date();
-    const from = req.query.from || today.toISOString().slice(0, 10);
-    const toDefault = new Date(today.getTime() + 60 * 86400000).toISOString().slice(0, 10);
-    const to = req.query.to || toDefault;
-
-    const { rows } = await pool.query(
-      `SELECT to_char(date,'YYYY-MM-DD') AS date, price, rooms_left
-       FROM room_availability
-       WHERE room_type_id=$1 AND date >= $2 AND date <= $3
-       ORDER BY date ASC`,
-      [req.params.roomId, from, to]
-    );
-
-    res.json({
-      ok: true,
-      room_id: req.params.roomId,
-      base_price: chk.room.base_price,
-      total_rooms: chk.room.total_rooms,
-      from, to,
-      days: rows,   // дни, для которых есть записи; остальные = по base_price
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+document.getElementById('loginPass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
 });
 
-// ─── PUT /api/hotels/rooms/:roomId/calendar ──────────────
-// Массовое задание цены/наличия на диапазон или список дат.
-// body: { dates:["2026-07-01",...] ИЛИ from,to,  price?, rooms_left?, closed? }
-router.put('/rooms/:roomId/calendar', auth, role('hotel_owner', 'admin'), async (req, res) => {
+function showErr(msg) { document.getElementById('loginErr').textContent = msg; }
+
+function doLogout() {
+  sessionStorage.removeItem('hotel_user');
+  location.reload();
+}
+
+function initApp() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  // Set user info
+  const u = currentUser;
+  const name = u.name || u.first_name || u.email;
+  document.getElementById('sb-hotel-name').textContent = name;
+  document.getElementById('sb-hotel-email').textContent = u.email;
+  document.getElementById('sb-name').textContent = name;
+  document.getElementById('sb-ava').textContent = name[0].toUpperCase();
+  // iCal URL
+  document.getElementById('ical-url').textContent = `${API}/api/bookings/ical/${u.id}.ics`;
+  // Load data
+  loadMyBookings();
+  renderProfile();
+  loadHotelData(); // подгружаем объект сразу → myHotelId доступен для календаря без захода в «Мой отель»
+  // Восстанавливаем открытую страницу (F5 / возврат не сбрасывают)
+  var savedPage = (location.hash || '').replace('#','') || sessionStorage.getItem('cab_page') || 'dashboard';
+  showPage(savedPage);
+}
+
+// Check saved session / вход по токену из URL (админ-impersonate)
+var _urlToken = new URLSearchParams(location.search).get('token');
+if (_urlToken) {
   try {
-    const chk = await ownRoomCheck(req.params.roomId, req.user);
-    if (chk.error) return res.status(chk.code).json({ error: chk.error });
+    var _p = JSON.parse(atob(_urlToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    currentUser = { id:_p.id, email:_p.email, role:_p.role, name:_p.email, token:_urlToken };
+    sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
+    history.replaceState({}, '', location.pathname); // убираем токен из адреса
+    initApp();
+  } catch (e) { console.error('token login', e); }
+} else {
+  const saved = sessionStorage.getItem('hotel_user');
+  if (saved) { currentUser = JSON.parse(saved); initApp(); }
+}
 
-    let { dates, from, to, price, rooms_left, closed } = req.body;
+// ── NAV ──
+function showPage(name, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  var pg = document.getElementById('page-' + name);
+  if (!pg) { name='dashboard'; pg=document.getElementById('page-dashboard'); }
+  pg.classList.add('on');
+  if (el) el.classList.add('active');
+  else document.querySelectorAll('.nav-item').forEach(function(n){ var oc=n.getAttribute('onclick')||''; if(oc.indexOf("'"+name+"'")>=0)n.classList.add('active'); });
+  const titles = {dashboard:'Дашборд',bookings:'Мои брони',hotel:'Мой отель',calendar:'Цены и доступность',ical:'Календарь (iCal)',profile:'Профиль'};
+  document.getElementById('pageTitle').textContent = titles[name] || name;
+  try { sessionStorage.setItem('cab_page', name); if(location.hash.replace('#','')!==name) history.replaceState(null,'','#'+name); } catch(e){}
+  if (name === 'bookings') renderBookingsTable(myBookings);
+  if (name === 'hotel') loadHotelData();
+  if (name === 'calendar') calInit();
+}
 
-    // Собираем список дат
-    let dateList = [];
-    if (Array.isArray(dates) && dates.length) {
-      dateList = dates;
-    } else if (from && to) {
-      const d = new Date(from), end = new Date(to);
-      while (d <= end) { dateList.push(d.toISOString().slice(0, 10)); d.setDate(d.getDate() + 1); }
+// ── LOAD BOOKINGS ──
+async function loadMyBookings() {
+  try {
+    const token = currentUser?.token;
+    const headers = {'Content-Type':'application/json'};
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
+    const r = await fetch(`${API}/api/bookings/my?limit=100`, { headers });
+    const d = await r.json();
+    if (!r.ok) {
+      console.warn('bookings/my error:', d.error);
+      myBookings = [];
     } else {
-      return res.status(400).json({ error: 'Укажите dates[] или from+to' });
+      myBookings = (d.bookings || []);
     }
-    if (dateList.length > 730) return res.status(400).json({ error: 'Слишком большой диапазон (макс 2 года)' });
-
-    // closed=true → rooms_left=0; иначе берём переданное или total_rooms
-    const finalRooms = closed ? 0
-      : (rooms_left != null ? parseInt(rooms_left) : chk.room.total_rooms);
-    const finalPrice = price != null ? parseFloat(price) : chk.room.base_price;
-
-    // upsert каждой даты
-    for (const dt of dateList) {
-      await pool.query(`
-        INSERT INTO room_availability (room_type_id, date, price, rooms_left)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (room_type_id, date)
-        DO UPDATE SET price = EXCLUDED.price, rooms_left = EXCLUDED.rooms_left
-      `, [req.params.roomId, dt, finalPrice, finalRooms]);
-    }
-
-    res.json({ ok: true, updated: dateList.length, price: finalPrice, rooms_left: finalRooms });
-  } catch (err) {
-    // Если нет уникального индекса — подсказываем
-    if (String(err.message).includes('no unique')) {
-      try {
-        await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS room_avail_uniq ON room_availability(room_type_id, date)');
-        return res.status(503).json({ error: 'Индекс создан, повторите запрос' });
-      } catch(e) {}
-    }
-    res.status(500).json({ error: err.message });
+    updateStats();
+    renderDashboard();
+    try{ bellCollect(); }catch(e){}
+  } catch(e) {
+    console.warn('loadMyBookings error:', e.message);
+    myBookings = [];
   }
-});
-
-// ─── POST /api/hotels/rooms/:roomId/weekend-pricing ──────
-// Быстрая наценка на выходные (пт-сб) на период.
-// body: { from, to, percent }  (+процент к base_price по пятницам и субботам)
-router.post('/rooms/:roomId/weekend-pricing', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const chk = await ownRoomCheck(req.params.roomId, req.user);
-    if (chk.error) return res.status(chk.code).json({ error: chk.error });
-
-    const { from, to, percent } = req.body;
-    if (!from || !to || percent == null) return res.status(400).json({ error: 'from, to, percent обязательны' });
-
-    const base = parseFloat(chk.room.base_price);
-    const wkndPrice = Math.round(base * (1 + parseFloat(percent) / 100));
-    const d = new Date(from), end = new Date(to);
-    let count = 0;
-    while (d <= end) {
-      const day = d.getDay(); // 5=пт, 6=сб
-      if (day === 5 || day === 6) {
-        const dt = d.toISOString().slice(0, 10);
-        await pool.query(`
-          INSERT INTO room_availability (room_type_id, date, price, rooms_left)
-          VALUES ($1, $2, $3, $4)
-          ON CONFLICT (room_type_id, date)
-          DO UPDATE SET price = EXCLUDED.price
-        `, [req.params.roomId, dt, wkndPrice, chk.room.total_rooms]);
-        count++;
-      }
-      d.setDate(d.getDate() + 1);
-    }
-    res.json({ ok: true, weekend_price: wkndPrice, days_updated: count });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── GET /api/hotels/:id ──────────────────────────────
-router.get('/:id', async (req, res) => {
-  try {
-    const { rows } = await pool.query(`
-      SELECT
-        h.*, c.name_ru AS city_ru, c.name_en AS city_en,
-        c.lat AS city_lat, c.lng AS city_lng,
-        COALESCE(
-          json_agg(DISTINCT jsonb_build_object(
-            'key',a.key,'name_ru',a.name_ru,'name_en',a.name_en,'icon',a.icon,'category',a.category
-          )) FILTER (WHERE a.key IS NOT NULL), '[]'
-        ) AS amenities,
-        COALESCE(
-          json_agg(DISTINCT jsonb_build_object(
-            'id',rt.id,'name_ru',rt.name_ru,'name_en',rt.name_en,
-            'capacity',rt.capacity,'beds',rt.beds,'size_sqm',rt.size_sqm,
-            'base_price',rt.base_price,'total_rooms',rt.total_rooms
-          )) FILTER (WHERE rt.id IS NOT NULL), '[]'
-        ) AS room_types,
-        COALESCE(
-          json_agg(DISTINCT jsonb_build_object('url',hp.url,'is_cover',hp.is_cover))
-          FILTER (WHERE hp.id IS NOT NULL), '[]'
-        ) AS photos
-      FROM hotels h
-      JOIN cities c ON h.city_id = c.id
-      LEFT JOIN hotel_amenities ha ON ha.hotel_id = h.id
-      LEFT JOIN amenities a ON a.id = ha.amenity_id
-      LEFT JOIN room_types rt ON rt.hotel_id = h.id AND rt.is_active = TRUE
-      LEFT JOIN hotel_photos hp ON hp.hotel_id = h.id
-      WHERE h.id = $1 AND h.is_active = TRUE
-      GROUP BY h.id, c.name_ru, c.name_en, c.lat, c.lng
-    `, [req.params.id]);
-
-    if (!rows.length) return res.status(404).json({ error: 'Отель не найден' });
-
-    // Recent reviews
-    const { rows: reviews } = await pool.query(`
-      SELECT r.id, r.rating, r.title, r.text_ru, r.text_en, r.pros, r.cons,
-             r.created_at, u.first_name, u.last_name
-      FROM reviews r
-      JOIN users u ON u.id = r.user_id
-      WHERE r.hotel_id = $1 AND r.is_published = TRUE
-      ORDER BY r.created_at DESC LIMIT 10
-    `, [req.params.id]);
-
-    const pub = { ...rows[0], reviews };
-    delete pub.ical_import_urls; // приватные ссылки хозяина — не публично
-    res.json(pub);
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка загрузки отеля' });
-  }
-});
-
-// ─── GET /api/hotels/:id/availability ─────────────────
-// Доступность номеров: ?checkin=2026-06-10&checkout=2026-06-13&guests=2
-router.get('/:id/availability', async (req, res) => {
-  const { checkin, checkout, guests = 1 } = req.query;
-  if (!checkin || !checkout) return res.status(400).json({ error: 'Укажите даты' });
-
-  try {
-    const { rows } = await pool.query(`
-      SELECT
-        rt.id, rt.name_ru, rt.name_en, rt.capacity, rt.beds, rt.size_sqm,
-        rt.base_price,
-        MIN(ra.price) AS price,
-        MIN(ra.rooms_left) AS rooms_left
-      FROM room_types rt
-      JOIN room_availability ra ON ra.room_type_id = rt.id
-      WHERE rt.hotel_id = $1
-        AND rt.is_active = TRUE
-        AND rt.capacity >= $4
-        AND ra.date >= $2 AND ra.date < $3
-        AND ra.rooms_left > 0
-      GROUP BY rt.id
-      HAVING COUNT(*) = ($3::date - $2::date)
-      ORDER BY price ASC
-    `, [req.params.id, checkin, checkout, parseInt(guests)]);
-
-    res.json({ available_rooms: rows, checkin, checkout, nights: rows.length > 0 ? null : 0 });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка проверки доступности' });
-  }
-});
-
-// ─── POST /api/hotels ─────────────────────────────────
-// Создать отель (для hotel_owner)
-router.post('/', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  const {
-    name_ru, name_en, city_id, address, lat, lng,
-    category = 'hotel', stars, description_ru, description_en,
-    phone, email, website, check_in_time, check_out_time
-  } = req.body;
-
-  if (!name_ru || !city_id) return res.status(400).json({ error: 'Название и город обязательны' });
-
-  try {
-    const { rows: [hotel] } = await pool.query(`
-      INSERT INTO hotels
-        (owner_id, name_ru, name_en, city_id, address, lat, lng,
-         category, stars, description_ru, description_en,
-         phone, email, website, check_in_time, check_out_time,
-         is_active)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16, FALSE)
-      RETURNING *
-    `, [
-      req.user.id, name_ru, name_en, city_id, address, lat, lng,
-      category, stars || null, description_ru, description_en,
-      phone, email, website,
-      check_in_time || '14:00', check_out_time || '12:00'
-    ]);
-    res.status(201).json(hotel);
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка создания отеля' });
-  }
-});
-
-// ─── POST /api/hotels/create-direct ───────────────────
-// Ручное создание СВОЕГО объекта админом: сразу source=direct, активный,
-// без claim-токена. Город необязателен (как в /draft) — задаётся позже.
-// Сохраняем мессенджеры хозяина (для ваучера) и правила дома.
-router.post('/create-direct', auth, role('admin'), async (req, res) => {
-  const {
-    name_ru, city_id, address, lat, lng, category = 'guest',
-    description_ru, phone, email, website, stars,
-    contact_tg, contact_wa, contact_viber, house_rules,
-    checkin_time, checkout_time
-  } = req.body;
-  if (!name_ru) return res.status(400).json({ error: 'Название обязательно' });
-  try {
-    // Если точные координаты не заданы — берём координаты города (чтобы точка на карте была)
-    let plat = (lat != null && lat !== '') ? lat : null;
-    let plng = (lng != null && lng !== '') ? lng : null;
-    if ((plat == null || plng == null) && city_id) {
-      try {
-        const cc = await pool.query('SELECT lat, lng FROM cities WHERE id = $1', [city_id]);
-        if (cc.rows.length) {
-          if (plat == null) plat = cc.rows[0].lat;
-          if (plng == null) plng = cc.rows[0].lng;
-        }
-      } catch (e) { /* необязательно */ }
-    }
-    const { rows: [hotel] } = await pool.query(`
-      INSERT INTO hotels
-        (name_ru, city_id, address, lat, lng, category, description_ru,
-         phone, email, website, stars,
-         contact_tg, contact_wa, contact_viber, house_rules,
-         checkin_time, checkout_time, check_in_time, check_out_time,
-         source, status, is_active)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$16,$17,'direct','active',TRUE)
-      RETURNING id, name_ru
-    `, [
-      name_ru, city_id || null, address || null, plat, plng, category,
-      description_ru || null, phone || null, email || null, website || null, stars || null,
-      contact_tg || null, contact_wa || null, contact_viber || null, house_rules || null,
-      checkin_time || '14:00', checkout_time || '12:00'
-    ]);
-    res.status(201).json({ ok: true, id: hotel.id, name_ru: hotel.name_ru });
-  } catch (err) {
-    console.error('create-direct:', err.message);
-    res.status(500).json({ error: 'Ошибка создания объекта' });
-  }
-});
-
-// ─── PATCH /api/hotels/:id ────────────────────────────
-router.patch('/:id', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  const { rows: [hotel] } = await pool.query('SELECT owner_id FROM hotels WHERE id=$1', [req.params.id]);
-  if (!hotel) return res.status(404).json({ error: 'Отель не найден' });
-  if (req.user.role !== 'admin' && String(hotel.owner_id) !== String(req.user.id)) {
-    return res.status(403).json({ error: 'Нет прав' });
-  }
-  const fields = ['name_ru','name_en','address','description_ru','description_en','phone','email','website','check_in_time','check_out_time','ostrovok_hid','is_active','stars','object_type','contact_tg','contact_wa','contact_viber','checkin_time','checkout_time','house_rules','status','ical_import_urls','sync_mode'];
-  const updates = [];
-  const values = [];
-  let i = 1;
-  for (const f of fields) {
-    if (req.body[f] !== undefined) { updates.push(`${f}=$${i++}`); values.push(req.body[f]); }
-  }
-  if (!updates.length) return res.status(400).json({ error: 'Нет данных для обновления' });
-  values.push(req.params.id);
-  const { rows: [updated] } = await pool.query(
-    `UPDATE hotels SET ${updates.join(',')} WHERE id=$${i} RETURNING *`, values
-  );
-  res.json(updated);
-});
-
-// ─── PATCH /api/hotels/:id/ostrovok ──────────────────
-// Привязать/отвязать Ostrovok HID к отелю (для админки)
-router.patch('/:id/ostrovok', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  const { ostrovok_hid } = req.body;
-  const { rows: [hotel] } = await pool.query('SELECT owner_id FROM hotels WHERE id=$1', [req.params.id]);
-  if (!hotel) return res.status(404).json({ error: 'Отель не найден' });
-  if (req.user.role !== 'admin' && String(hotel.owner_id) !== String(req.user.id)) {
-    return res.status(403).json({ error: 'Нет прав' });
-  }
-  const { rows: [updated] } = await pool.query(
-    'UPDATE hotels SET ostrovok_hid=$1, updated_at=NOW() WHERE id=$2 RETURNING id, name_ru, ostrovok_hid',
-    [ostrovok_hid || null, req.params.id]
-  );
-  res.json({ ok: true, hotel: updated });
-});
-
-// ─── POST /api/hotels/:id/photos ─────────────────────
-// Загрузка фото отеля (multipart/form-data)
-router.post('/:id/photos', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const hotelId = req.params.id;
-    // Проверяем права
-    const { rows: [hotel] } = await pool.query('SELECT owner_id FROM hotels WHERE id=$1', [hotelId]);
-    if (!hotel) return res.status(404).json({ error: 'Отель не найден' });
-    if (req.user.role !== 'admin' && String(hotel.owner_id) !== String(req.user.id)) {
-      return res.status(403).json({ error: 'Нет прав' });
-    }
-    // Сохраняем URL фото (фронт должен передать url в body)
-    const { url, is_cover = false } = req.body;
-    if (!url) return res.status(400).json({ error: 'url обязателен' });
-    const countRes = await pool.query('SELECT COUNT(*) FROM hotel_photos WHERE hotel_id=$1', [hotelId]);
-    const sort_order = parseInt(countRes.rows[0].count);
-    const { rows: [photo] } = await pool.query(
-      'INSERT INTO hotel_photos (hotel_id, url, is_cover, sort_order) VALUES ($1,$2,$3,$4) RETURNING *',
-      [hotelId, url, is_cover || sort_order === 0, sort_order]
-    );
-    res.status(201).json({ ok: true, photo });
-  } catch (err) {
-    console.error('photo upload error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── DELETE /api/hotels/:id/photos/:photoId ───────────
-router.delete('/:id/photos/:photoId', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const { rows: [hotel] } = await pool.query('SELECT owner_id FROM hotels WHERE id=$1', [req.params.id]);
-    if (!hotel) return res.status(404).json({ error: 'Отель не найден' });
-    if (req.user.role !== 'admin' && String(hotel.owner_id) !== String(req.user.id)) {
-      return res.status(403).json({ error: 'Нет прав' });
-    }
-    await pool.query('DELETE FROM hotel_photos WHERE id=$1 AND hotel_id=$2', [req.params.photoId, req.params.id]);
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ─── GET /api/hotels/:id/ical-import — тянет чужие .ics и возвращает занятые даты ───
-// Хозяин сохраняет ссылки .ics (Booking/Avito/Sutochno) в поле ical_import_urls (JSON-массив).
-// Общий парсер: тянет .ics-ссылки, возвращает занятые даты YYYY-MM-DD
-async function fetchIcalBlocked(urls) {
-  const blocked = [];
-  for (const u of urls) {
-    try {
-      const r = await fetch(u, { headers: { 'User-Agent': 'ZaedemBy/1.0' } });
-      if (!r.ok) continue;
-      const txt = await r.text();
-      const events = txt.split('BEGIN:VEVENT').slice(1);
-      for (const ev of events) {
-        const ds = ev.match(/DTSTART[^:]*:(\d{8})/);
-        const de = ev.match(/DTEND[^:]*:(\d{8})/);
-        if (!ds) continue;
-        const s = ds[1], e = de ? de[1] : ds[1];
-        let d = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
-        const dend = new Date(+e.slice(0, 4), +e.slice(4, 6) - 1, +e.slice(6, 8));
-        if (d >= dend) { blocked.push(d.toISOString().slice(0, 10)); continue; }
-        while (d < dend) { blocked.push(d.toISOString().slice(0, 10)); d = new Date(d.getTime() + 86400000); }
-      }
-    } catch (e) { console.error('ical fetch', u, e.message); }
-  }
-  return [...new Set(blocked)].sort();
 }
 
-// ─── Кэш + фоновая синхронизация чужих календарей ───
-const icalCache = new Map();               // key 'hotel:ID'|'room:ID' → {t, blocked}
-const ICAL_TTL = 20 * 60 * 1000;           // 20 минут
+// ── КОЛОКОЛЬЧИК партнёра: новые брони, отмены, заезды завтра ──
+function bellSeenTs(){ return parseInt(localStorage.getItem('cab_bell_seen')||'0',10)||0; }
+function bellCollect(){
+  var ev=[]; var now=Date.now(); var day=86400000;
+  (myBookings||[]).forEach(function(b){
+    var ct=new Date(b.created_at||0).getTime();
+    if(b.status==='cancelled'||b.status==='canceled'){
+      ev.push({t:new Date(b.cancelled_at||b.updated_at||b.created_at||0).getTime(),ic:'❌',txt:'Отмена — '+(b.hotel_name||''),page:'bookings'});
+    } else {
+      ev.push({t:ct,ic:'🆕',txt:'Новая бронь — '+(b.guest_name||b.hotel_name||''),page:'bookings'});
+      // заезд завтра — t по дате заезда (стабильно), иначе с t:now бейдж перезагорается каждые 30 сек
+      var ci=new Date((b.check_in||'')+'T12:00:00').getTime();
+      if(ci&&ci-now>0&&ci-now<day*1.5){ ev.push({t:ci,ic:'📅',txt:'Завтра заезд — '+(b.guest_name||'гость')+' ('+(b.hotel_name||'')+')',page:'bookings'}); }
+    }
+  });
+  ev.sort(function(a,b){return b.t-a.t;});
+  window._bellEvents=ev.slice(0,30);
+  var seen=bellSeenTs();
+  var unread=window._bellEvents.filter(function(e){return e.t>seen;}).length;
+  var badge=document.getElementById('bell-badge');
+  if(badge){ if(unread>0){ badge.style.display='block'; badge.textContent=unread>99?'99+':unread; } else badge.style.display='none'; }
+  var list=document.getElementById('bell-list');
+  if(list){
+    if(!window._bellEvents.length){ list.innerHTML='<div style="padding:24px;text-align:center;color:var(--muted);font-size:13px">Пока событий нет</div>'; return; }
+    list.innerHTML=window._bellEvents.map(function(e){
+      var isNew=e.t>seen;
+      var when=e.t?new Date(e.t).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+      return '<div onclick="bellGo(\''+(e.page||'bookings')+'\')" style="padding:11px 14px;border-bottom:1px solid var(--faint);cursor:pointer;display:flex;gap:10px;'+(isNew?'background:rgba(26,92,56,.05)':'')+'">'
+        +'<span style="font-size:16px">'+e.ic+'</span>'
+        +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--ink);line-height:1.4">'+String(e.txt).replace(/</g,'&lt;')+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">'+when+'</div></div>'
+        +(isNew?'<span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0;margin-top:4px"></span>':'')
+        +'</div>';
+    }).join('');
+  }
+}
+function toggleBell(){
+  var d=document.getElementById('bell-drop'); if(!d)return;
+  var show=(d.style.display==='none'||!d.style.display);
+  d.style.display=show?'block':'none';
+  if(show) bellCollect();
+}
+function markBellRead(){
+  var ev=window._bellEvents||[];
+  var maxT=ev.length?Math.max.apply(null,ev.map(function(e){return e.t;})):Date.now();
+  localStorage.setItem('cab_bell_seen',String(maxT));
+  bellCollect();
+}
+function bellGo(page){
+  markBellRead();
+  var d=document.getElementById('bell-drop'); if(d)d.style.display='none';
+  showPage(page||'bookings');
+}
+document.addEventListener('click',function(e){
+  var d=document.getElementById('bell-drop');
+  if(d&&d.style.display==='block'&&!e.target.closest('#bell-drop')&&!e.target.closest('[onclick="toggleBell()"]')){ d.style.display='none'; }
+});
+setInterval(function(){ if(document.visibilityState==='visible'&&currentUser){ try{ loadMyBookings(); }catch(e){} } }, 30000);
 
-async function getBlockedCached(key, urls) {
-  const hit = icalCache.get(key);
-  if (hit && Date.now() - hit.t < ICAL_TTL) return hit.blocked;
-  const blocked = await fetchIcalBlocked(urls);
-  icalCache.set(key, { t: Date.now(), blocked });
-  return blocked;
+function updateStats() {
+  document.getElementById('s-total').textContent = myBookings.length;
+  const newCount = myBookings.filter(b => b.status === 'confirmed').length;
+  document.getElementById('s-new').textContent = newCount;
+  document.getElementById('nb-new').textContent = newCount;
+  const rev = myBookings.reduce((s,b) => s + parseFloat(b.total_price||0), 0);
+  document.getElementById('s-rev').textContent = '$' + rev.toFixed(0);
 }
 
-// Крон: раз в 20 мин обновляем занятость всех объектов/номеров с iCal-ссылками
-async function syncAllIcal() {
-  try {
-    const nonEmpty = "ical_import_urls IS NOT NULL AND ical_import_urls <> '' AND ical_import_urls <> '[]'";
-    const { rows: hs } = await pool.query(`SELECT id, ical_import_urls FROM hotels WHERE ${nonEmpty}`);
-    for (const h of hs) { let u=[]; try{u=JSON.parse(h.ical_import_urls||'[]');}catch(e){} if(u.length){ const b=await fetchIcalBlocked(u); icalCache.set('hotel:'+h.id,{t:Date.now(),blocked:b}); } }
-    let rrooms = [];
-    try { const { rows } = await pool.query(`SELECT id, ical_import_urls FROM room_types WHERE ${nonEmpty}`); rrooms = rows; } catch(e){}
-    for (const r of rrooms) { let u=[]; try{u=JSON.parse(r.ical_import_urls||'[]');}catch(e){} if(u.length){ const b=await fetchIcalBlocked(u); icalCache.set('room:'+r.id,{t:Date.now(),blocked:b}); } }
-    console.log('🔄 iCal sync:', hs.length, 'объектов,', rrooms.length, 'номеров');
-  } catch (e) { console.error('iCal sync error:', e.message); }
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderDashboard() {
+  const last5 = myBookings.slice(0, 5);
+  document.getElementById('dash-bookings').innerHTML = last5.length ? `
+    <table>
+      <tr><th>Бронь</th><th>Гость</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Сумма</th><th>Статус</th></tr>
+      ${last5.map(b => `
+        <tr>
+          <td><b>${b.booking_num}</b></td>
+          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></td>
+          <td>${esc(b.hotel_name||'—')}</td>
+          <td>${fmtDate(b.check_in)}</td>
+          <td>${fmtDate(b.check_out)}</td>
+          <td><b>$${parseFloat(b.total_price||0).toFixed(0)}</b></td>
+          <td>${statusBadge(b.status)}</td>
+        </tr>`).join('')}
+    </table>` : '<div class="empty">Броней пока нет</div>';
 }
-setInterval(syncAllIcal, ICAL_TTL);        // каждые 20 мин фоном
-setTimeout(syncAllIcal, 30000);            // первый прогон через 30с после старта
 
-router.get('/:id/ical-import', auth, role('hotel_owner', 'admin'), async (req, res) => {
+function renderBookingsTable(bookings) {
+  document.getElementById('bookings-table').innerHTML = bookings.length ? `
+    <table>
+      <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr>
+      ${bookings.map(b => { var foreign=b.guest_citizenship && b.guest_citizenship!=='Беларусь'; return `
+        <tr${foreign?' style="background:#fff5f5"':''}>
+          <td><b style="color:var(--green)">${b.booking_num}</b></td>
+          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(b.guest_citizenship)} — регистрация в МВД</span>`:''}</td>
+          <td>${esc(b.guest_phone||'—')}</td>
+          <td>${esc(b.hotel_name||'—')}</td>
+          <td>${fmtDate(b.check_in)}</td>
+          <td>${fmtDate(b.check_out)}</td>
+          <td>${b.nights||1}</td>
+          <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${b.currency||'BYN'}</b></td>
+          <td>${statusBadge(b.status)}</td>
+          <td style="display:flex;flex-direction:column;gap:4px">
+            ${foreign?`<button onclick="mvdAnketa('${b.booking_num}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📋 Анкета МВД</button>`:''}
+            ${(b.source!=='ostrovok')?`<button onclick="contractLink('${b.booking_num}')" style="background:#eef7ee;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🔗 Данные гостя</button>`:''}
+            ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${b.booking_num}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Отменить</button>` : '—'}
+          </td>
+        </tr>`; }).join('')}
+    </table>` : '<div class="empty">Броней пока нет</div>';
+}
+// Ссылка «данные гостя для договора» — берём с бэка и копируем, чтобы отправить гостю.
+// Работает по любой брони своих объектов (токен создаётся лениво, если его ещё нет).
+async function contractLink(bookingNum){
+  try{
+    const r=await fetch(`${API}/api/bookings/${encodeURIComponent(bookingNum)}/contract-link`,{headers:{'Authorization':'Bearer '+(token||'')}});
+    const d=await r.json();
+    if(!d.ok||!d.url){ alert(d.error||'Не удалось получить ссылку'); return; }
+    try{
+      await navigator.clipboard.writeText(d.url);
+      alert('Ссылка скопирована — отправьте её гостю:\n\n'+d.url+'\n\nГость заполнит данные для договора, они придут вам сюда.');
+    }catch(e){
+      prompt('Ссылка для данных гостя (скопируйте вручную):', d.url);
+    }
+  }catch(e){ alert('Сервис недоступен, попробуйте позже'); }
+}
+// Анкета для МВД — печатная форма с данными иностранных гостей (авто-заполнена)
+function mvdAnketa(bookingNum){
+  var b=(myBookings||[]).find(function(x){return x.booking_num===bookingNum;}); if(!b)return;
+  var guests=[]; try{ guests=JSON.parse(b.guest_passports||'[]')||[]; }catch(e){ guests=[]; }
+  var rows=guests.map(function(g,i){
+    return '<tr><td>'+(i+1)+'</td><td>'+(g.name||'')+'</td><td>'+(g.dob||'')+'</td><td>'+(g.passport||'')+'</td><td>'+(b.guest_citizenship||'')+'</td></tr>';
+  }).join('') || '<tr><td colspan="5" style="color:#888">Данные гостей не заполнены</td></tr>';
+  var w=window.open('','_blank');
+  w.document.write('<html><head><meta charset="utf-8"><title>Анкета МВД — '+bookingNum+'</title>'
+    +'<style>body{font-family:Arial,sans-serif;padding:30px;color:#111}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #999;padding:8px 10px;font-size:13px;text-align:left}th{background:#f0f0f0}.meta{font-size:13px;color:#444;margin-top:8px;line-height:1.7}@media print{button{display:none}}</style></head><body>'
+    +'<h2>Сведения о проживающих иностранных гражданах</h2>'
+    +'<div class="meta"><b>Объект:</b> '+(b.hotel_name||'')+'<br><b>Адрес:</b> '+(b.hotel_address||'—')+'<br><b>Бронь №:</b> '+bookingNum+'<br><b>Заезд:</b> '+fmtDate(b.check_in)+' &nbsp; <b>Выезд:</b> '+fmtDate(b.check_out)+'<br><b>Гражданство:</b> '+(b.guest_citizenship||'')+'</div>'
+    +'<table><tr><th>№</th><th>Имя и фамилия</th><th>Дата рождения</th><th>Паспорт</th><th>Гражданство</th></tr>'+rows+'</table>'
+    +'<p style="margin-top:20px"><button onclick="window.print()" style="padding:10px 20px;font-size:14px;cursor:pointer">🖨 Печать / Сохранить PDF</button></p>'
+    +'</body></html>');
+  w.document.close();
+}
+
+function renderProfile() {
+  const u = currentUser;
+  document.getElementById('profile-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
+      <div><b style="color:var(--muted);font-size:11px">Имя</b><br>${u.name||u.first_name||'—'}</div>
+      <div><b style="color:var(--muted);font-size:11px">Email</b><br>${u.email}</div>
+      <div><b style="color:var(--muted);font-size:11px">Телефон</b><br>${u.phone||'—'}</div>
+      <div><b style="color:var(--muted);font-size:11px">Роль</b><br>Отельер</div>
+    </div>
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--faint);font-size:12px;color:var(--muted)">
+      Для изменения данных напишите на <a href="mailto:admin@zaedem.by" style="color:var(--green)">admin@zaedem.by</a>
+    </div>
+  `;
+}
+
+function pickSyncMode(mode){
+  var hid=document.getElementById('h-syncmode'); if(hid)hid.value=mode;
+  document.querySelectorAll('.mode-card').forEach(function(c){
+    var on=c.getAttribute('data-mode')===mode;
+    c.style.border='2px solid '+(on?'var(--green)':'var(--faint)');
+    c.style.background=on?'rgba(26,92,56,.05)':(c.getAttribute('data-mode')==='channel'?'#fafafa':'#fff');
+    var chk=c.querySelector('.mode-check'); if(chk)chk.style.display=on?'block':'none';
+  });
+}
+function syncModeHint(){ /* оставлено для совместимости */ }
+function copyIcal() {
+  const url = document.getElementById('ical-url').textContent;
+  navigator.clipboard?.writeText(url);
+  showToast('Ссылка скопирована!');
+}
+
+function _icalMsg(text, ok){
+  const m=document.getElementById('ical-import-msg'); if(!m)return;
+  m.textContent=text;
+  m.style.cssText='display:block;margin-top:10px;font-size:12px;font-weight:600;padding:8px 12px;border-radius:8px;'+(ok?'color:#27500A;background:#EAF3DE':'color:#c00;background:#fff0f0');
+}
+async function saveIcalImport(){
+  if(!myHotelId)return;
+  const raw=(document.getElementById('ical-import')||{}).value||'';
+  const urls=raw.split(/\n+/).map(s=>s.trim()).filter(Boolean);
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/${myHotelId}`,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ical_import_urls:JSON.stringify(urls)})});
+    if(r.ok){ _icalMsg('✅ Сохранено ('+urls.length+' ссылок). Нажмите «Проверить занятость».', true); }
+    else { _icalMsg('❌ Ошибка сохранения', false); }
+  }catch(e){ _icalMsg('❌ '+e.message, false); }
+}
+async function checkIcalImport(){
+  if(!myHotelId)return;
+  _icalMsg('🔄 Проверяем календари…', true);
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/${myHotelId}/ical-import`,{headers:{'Authorization':'Bearer '+token}});
+    const d=await r.json();
+    if(d.error){ _icalMsg('❌ '+d.error, false); return; }
+    const n=(d.blocked||[]).length;
+    if(!d.sources){ _icalMsg('Ссылки не заданы — вставьте .ics и сохраните.', false); return; }
+    _icalMsg('✅ Проверено '+d.sources+' источников. Занятых дней: '+n+(n?' — они будут закрыты в вашем календаре.':' (свободно).'), true);
+    window._icalBlocked=d.blocked||[];
+    if(typeof calRender==='function')try{calRender();}catch(e){}
+  }catch(e){ _icalMsg('❌ '+e.message, false); }
+}
+
+// ── MANAGE BOOKINGS ──
+async function hotelCancelBooking(bookingNum) {
+  if (!confirm('Отменить бронь ' + bookingNum + '?\nГость получит уведомление.')) return;
   try {
-    const { rows: [h] } = await pool.query('SELECT ical_import_urls FROM hotels WHERE id=$1', [req.params.id]);
-    if (!h) return res.status(404).json({ error: 'Отель не найден' });
-    let urls = [];
-    try { urls = JSON.parse(h.ical_import_urls || '[]'); } catch (e) { urls = []; }
-    if (!Array.isArray(urls) || !urls.length) return res.json({ blocked: [], sources: 0 });
-    const blocked = await getBlockedCached("hotel:"+req.params.id, urls);
-    res.json({ blocked, sources: urls.length });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ─── GET /api/hotels/rooms/:id/ical-import — занятость номера с чужих площадок ───
-router.get('/rooms/:id/ical-import', auth, role('hotel_owner', 'admin'), async (req, res) => {
-  try {
-    const { rows: [rm] } = await pool.query('SELECT ical_import_urls FROM room_types WHERE id=$1', [req.params.id]);
-    if (!rm) return res.status(404).json({ error: 'Номер не найден' });
-    let urls = [];
-    try { urls = JSON.parse(rm.ical_import_urls || '[]'); } catch (e) { urls = []; }
-    if (!Array.isArray(urls) || !urls.length) return res.json({ blocked: [], sources: 0 });
-    const blocked = await getBlockedCached("room:"+req.params.id, urls);
-    res.json({ blocked, sources: urls.length });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// ═══════════════════════════════════════════════════════════════════
-//  МАГИЧЕСКАЯ ССЫЛКА: черновик объекта → хозяин подтверждает → публикация
-//  Юр.чистота: объект-черновик публично НЕвидим (is_active=FALSE, status='draft'),
-//  существует только по секретному одноразовому токену. Публикуется ТОЛЬКО после
-//  явного согласия хозяина (фиксируем claimed_at). Отказ → удаляем, нигде не светился.
-// ═══════════════════════════════════════════════════════════════════
-const crypto = require('crypto');
-
-// POST /api/hotels/draft — АДМИН создаёт черновик под согласившегося хозяина (полуавтомат-импорт).
-// Возвращает магическую ссылку-токен. Данные (фото/описание) — с устного согласия хозяина.
-router.post('/draft', auth, role('admin'), async (req, res) => {
-  const {
-    name_ru, city_id, address, lat, lng, category = 'guest',
-    description_ru, phone, email, source_listing_url
-  } = req.body;
-  if (!name_ru) return res.status(400).json({ error: 'Название обязательно' });
-  try {
-    const token = crypto.randomBytes(24).toString('base64url'); // ~32 симв, не перебрать
-    const { rows: [hotel] } = await pool.query(`
-      INSERT INTO hotels
-        (name_ru, city_id, address, lat, lng, category, description_ru,
-         phone, email, source, status, is_active, claim_token, source_listing_url)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'direct','draft',FALSE,$10,$11)
-      RETURNING id, claim_token
-    `, [name_ru, city_id || null, address, lat, lng, category, description_ru,
-        phone, email, token, source_listing_url || null]);
-    res.status(201).json({
-      ok: true, id: hotel.id, token: hotel.claim_token,
-      claim_url: '/claim/' + hotel.claim_token   // фронт кабинета построит полный URL
+    const token = currentUser?.token;
+    const r = await fetch(`${API}/api/bookings/${bookingNum}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (token||'')
+      },
+      body: JSON.stringify({ status: 'cancelled' })
     });
-  } catch (err) {
-    console.error('draft create:', err.message);
-    res.status(500).json({ error: 'Ошибка создания черновика' });
+    const d = await r.json();
+    if (!r.ok) { alert(d.error || 'Ошибка'); return; }
+    showToast('Бронь ' + bookingNum + ' отменена');
+    await loadMyBookings();
+    renderBookingsTable(myBookings);
+  } catch(e) {
+    alert('Ошибка соединения');
   }
-});
+}
 
-// GET /api/hotels/claim/:token — хозяин открывает магическую ссылку (БЕЗ входа).
-// Отдаём только этот черновик и только если он ещё не подтверждён.
-router.get('/claim/:token', async (req, res) => {
-  const t = String(req.params.token || '');
-  if (t.length < 20) return res.status(404).json({ error: 'Ссылка недействительна' });
+// ── HELPERS ──
+function fmtDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('ru-RU', {day:'numeric',month:'short',year:'numeric'});
+}
+
+function statusBadge(s) {
+  const map = {confirmed:'badge-green',pending:'badge-amber',cancelled:'badge-red',completed:'badge-blue'};
+  const labels = {confirmed:'Подтверждено',pending:'Ожидает',cancelled:'Отменено',completed:'Завершено'};
+  return `<span class="badge ${map[s]||'badge-gray'}">${labels[s]||s}</span>`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show';
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ── МОЙ ОТЕЛЬ ──────────────────────────────────────────
+let myHotelId = null;
+
+async function loadHotelData() {
   try {
-    const { rows } = await pool.query(
-      `SELECT id, name_ru, city_id, address, lat, lng, category, description_ru,
-              phone, email, contact_tg, contact_wa, contact_viber, house_rules,
-              claimed_at, source_listing_url
-         FROM hotels WHERE claim_token = $1 AND status = 'draft'`, [t]);
-    if (!rows.length) return res.status(404).json({ error: 'Ссылка недействительна или объект уже подтверждён' });
-    res.set('Cache-Control', 'no-store');
-    res.json({ ok: true, draft: rows[0], claimed: !!rows[0].claimed_at });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка' });
-  }
-});
+    const token = currentUser?.token;
+    const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
 
-// POST /api/hotels/claim/:token — хозяин ПОДТВЕРЖДАЕТ: правит данные + даёт согласие.
-// Фиксируем согласие (claimed_at), объект публикуется (status active + is_active),
-// создаём/привязываем владельца. Требует согласия с офертой (agree=true).
-router.post('/claim/:token', async (req, res) => {
-  const t = String(req.params.token || '');
-  const { name_ru, description_ru, phone, email, address, agree, owner_email, owner_password,
-          contact_tg, contact_wa, contact_viber, house_rules, city_id, lat, lng } = req.body;
-  if (t.length < 20) return res.status(404).json({ error: 'Ссылка недействительна' });
-  if (!agree) return res.status(400).json({ error: 'Нужно согласие с условиями (оферта)' });
-  try {
-    const { rows: [draft] } = await pool.query(
-      `SELECT id, owner_id FROM hotels WHERE claim_token = $1 AND status = 'draft'`, [t]);
-    if (!draft) return res.status(404).json({ error: 'Ссылка недействительна или уже подтверждена' });
-
-    // Привязка владельца: если прислал email+пароль — создаём/находим владельца
-    let ownerId = draft.owner_id;
-    if (!ownerId && owner_email && owner_password) {
-      const em = String(owner_email).toLowerCase().trim();
-      const { rows: ex } = await pool.query('SELECT id FROM users WHERE email=$1', [em]);
-      if (ex.length) { ownerId = ex[0].id; }
-      else {
-        const bcrypt = require('bcryptjs');
-        const hash = await bcrypt.hash(String(owner_password), 12);
-        const { rows: nu } = await pool.query(
-          `INSERT INTO users (email, password_hash, role, name) VALUES ($1,$2,'hotel_owner',$3) RETURNING id`,
-          [em, hash, name_ru || 'Партнёр']);
-        ownerId = nu[0].id;
-      }
+    // Получаем список отелей отельера
+    const r = await fetch(`${API}/api/hotels/owner/my`, {headers});
+    const hotels = await r.json();
+    if (!hotels.length) {
+      document.getElementById('hotel-save-msg').textContent = 'У вас нет привязанных отелей';
+      document.getElementById('hotel-save-msg').style.display = 'block';
+      return;
     }
 
-    // Хозяин подтвердил и дал согласие → создаём/привязываем кабинет владельца,
-    // фиксируем согласие, но НЕ публикуем сразу: объект уходит на МОДЕРАЦИЮ к админу
-    // (юр.проверки). Токен гасим. На сайте появится только после одобрения админом.
-    // Координаты: если не задали — берём координаты города (чтобы точка на карте была)
-    let plat = (lat != null && lat !== '') ? lat : null;
-    let plng = (lng != null && lng !== '') ? lng : null;
-    if ((plat == null || plng == null) && city_id) {
-      try {
-        const cc = await pool.query('SELECT lat, lng FROM cities WHERE id = $1', [city_id]);
-        if (cc.rows.length) { if (plat == null) plat = cc.rows[0].lat; if (plng == null) plng = cc.rows[0].lng; }
-      } catch (e) { /* необязательно */ }
-    }
-    const { rows: [pub] } = await pool.query(`
-      UPDATE hotels SET
-        name_ru = COALESCE($2, name_ru),
-        description_ru = COALESCE($3, description_ru),
-        phone = COALESCE($4, phone),
-        email = COALESCE($5, email),
-        address = COALESCE($6, address),
-        owner_id = COALESCE($7, owner_id),
-        contact_tg = COALESCE($8, contact_tg),
-        contact_wa = COALESCE($9, contact_wa),
-        contact_viber = COALESCE($10, contact_viber),
-        house_rules = COALESCE($11, house_rules),
-        city_id = COALESCE($12, city_id),
-        lat = COALESCE($13, lat),
-        lng = COALESCE($14, lng),
-        status = 'moderation', is_active = FALSE,
-        claimed_at = NOW(), claim_token = NULL
-      WHERE id = $1 RETURNING id, name_ru, status
-    `, [draft.id, name_ru, description_ru, phone, email, address, ownerId,
-        contact_tg || null, contact_wa || null, contact_viber || null, house_rules || null,
-        city_id || null, plat, plng]);
-    res.json({ ok: true, on_moderation: true, hotel: pub,
-      message: 'Спасибо! Объект принят и отправлен на проверку. После одобрения он появится на сайте, а доступ в кабинет уже открыт.' });
-  } catch (err) {
-    console.error('claim confirm:', err.message);
-    res.status(500).json({ error: 'Ошибка подтверждения' });
-  }
-});
+    myHotelId = hotels[0].id;
 
-// DELETE /api/hotels/draft/:id — админ удаляет черновик (хозяин отказался/молчит).
-router.delete('/draft/:id', auth, role('admin'), async (req, res) => {
+    // Загружаем полные данные отеля
+    const r2 = await fetch(`${API}/api/hotels/${myHotelId}`, {headers});
+    const h = await r2.json();
+
+    // Заполняем форму
+    document.getElementById('h-name').value = h.name_ru || '';
+    document.getElementById('h-address').value = h.address || '';
+    document.getElementById('h-phone').value = h.phone || '';
+    document.getElementById('h-email').value = h.email || '';
+    document.getElementById('h-desc').value = h.description_ru || '';
+    if(document.getElementById('h-type')) document.getElementById('h-type').value = h.object_type || 'guest';
+    if(document.getElementById('h-syncmode')){ document.getElementById('h-syncmode').value = h.sync_mode || 'own'; pickSyncMode(h.sync_mode || 'own'); }
+    if(document.getElementById('h-tg')) document.getElementById('h-tg').value = h.contact_tg || '';
+    if(document.getElementById('h-wa')) document.getElementById('h-wa').value = h.contact_wa || '';
+    if(document.getElementById('h-viber')) document.getElementById('h-viber').value = h.contact_viber || '';
+    if(document.getElementById('h-checkin')) document.getElementById('h-checkin').value = h.checkin_time || '14:00';
+    if(document.getElementById('h-checkout')) document.getElementById('h-checkout').value = h.checkout_time || '12:00';
+    if(document.getElementById('h-rules')) document.getElementById('h-rules').value = h.house_rules || '';
+    if(document.getElementById('h-cancel')) document.getElementById('h-cancel').value = h.cancel_rules || '';
+    if(document.getElementById('ical-import')){ try{ document.getElementById('ical-import').value=(JSON.parse(h.ical_import_urls||'[]')||[]).join('\n'); }catch(e){} }
+    if (h.name_ru) document.getElementById('sb-hotel-name').textContent = h.name_ru;
+
+    // Загружаем фото и номера
+    loadHotelPhotos(myHotelId);
+    loadHotelRooms(myHotelId);
+    // Если открыта страница календаря (например после F5) — дорисовываем её, когда объект загружен
+    try{ if(sessionStorage.getItem('cab_page')==='calendar' && typeof calInit==='function') calInit(); }catch(e){}
+  } catch(e) {
+    console.error('loadHotelData error:', e.message);
+  }
+}
+
+async function saveHotelInfo() {
+  if (!myHotelId) return;
+  const token = currentUser?.token;
+  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+  const body = {
+    name_ru:        document.getElementById('h-name').value.trim(),
+    address:        document.getElementById('h-address').value.trim(),
+    phone:          document.getElementById('h-phone').value.trim(),
+    email:          document.getElementById('h-email').value.trim(),
+    description_ru: document.getElementById('h-desc').value.trim(),
+    object_type:    (document.getElementById('h-type')||{}).value||'',
+    sync_mode:      (document.getElementById('h-syncmode')||{}).value||'own',
+    contact_tg:     (document.getElementById('h-tg')||{}).value.trim(),
+    contact_wa:     (document.getElementById('h-wa')||{}).value.trim(),
+    contact_viber:  (document.getElementById('h-viber')||{}).value.trim(),
+    checkin_time:   (document.getElementById('h-checkin')||{}).value||'',
+    checkout_time:  (document.getElementById('h-checkout')||{}).value||'',
+    house_rules:    (document.getElementById('h-rules')||{}).value.trim(),
+    cancel_rules:   (document.getElementById('h-cancel')||{}).value.trim(),
+  };
   try {
-    const { rowCount } = await pool.query(
-      `DELETE FROM hotels WHERE id = $1 AND status = 'draft'`, [req.params.id]);
-    res.json({ ok: true, deleted: rowCount });
-  } catch (err) {
-    res.status(500).json({ error: 'Ошибка удаления' });
+    const r = await fetch(`${API}/api/hotels/${myHotelId}`, {method:'PATCH',headers,body:JSON.stringify(body)});
+    const d = await r.json();
+    const msg = document.getElementById('hotel-save-msg');
+    if (r.ok) {
+      msg.textContent = '✅ Сохранено!';
+      msg.style.cssText = 'display:block;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+      // Обновляем название в сайдбаре
+      if (d.name_ru) document.getElementById('sb-hotel-name').textContent = d.name_ru;
+    } else {
+      msg.textContent = '❌ ' + (d.error || 'Ошибка сохранения');
+      msg.style.cssText = 'display:block;color:#c00;background:#fff0f0;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
+      console.error('saveHotelInfo error:', d);
+    }
+    setTimeout(() => msg.style.display = 'none', 3000);
+  } catch(e) {
+    console.error('saveHotelInfo error:', e.message);
   }
-});
+}
 
-module.exports = router;
+async function loadHotelPhotos(hotelId) {
+  try {
+    const token = currentUser?.token;
+    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers:{'Authorization':'Bearer '+token}});
+    const data = await r.json();
+    const photos = data.photos || [];
+    const grid = document.getElementById('hotel-photos-grid');
+    if (!photos.length) {
+      grid.innerHTML = '<div style="color:var(--muted);font-size:13px">Фото не добавлены</div>';
+      return;
+    }
+    grid.innerHTML = photos.map((p,i) => `
+      <div style="position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1.5px solid var(--faint)">
+        <img src="${p.url||p}" style="width:100%;height:100%;object-fit:cover">
+        <button onclick="deletePhoto('${hotelId}','${p.id||i}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
+        ${i===0?'<div style="position:absolute;bottom:4px;left:4px;background:#c9f135;color:#0d2b15;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">ОБЛОЖКА</div>':''}
+      </div>`).join('');
+  } catch(e) {
+    console.error('loadHotelPhotos error:', e.message);
+  }
+}
+
+async function addPhotoByUrl() {
+  if (!myHotelId) return;
+  const input = document.getElementById('photo-url-input');
+  const url = input.value.trim();
+  if (!url || !url.startsWith('http')) {
+    alert('Введите корректную ссылку на фото');
+    return;
+  }
+  const token = currentUser?.token;
+  const progress = document.getElementById('upload-progress');
+  progress.textContent = 'Добавляем фото...';
+  try {
+    const r = await fetch(`${API}/api/hotels/${myHotelId}/photos`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + token},
+      body: JSON.stringify({url, is_cover: false})
+    });
+    const d = await r.json();
+    if (r.ok) {
+      progress.textContent = '✅ Фото добавлено!';
+      input.value = '';
+      loadHotelPhotos(myHotelId);
+    } else {
+      progress.textContent = '❌ ' + (d.error || 'Ошибка');
+    }
+  } catch(e) {
+    progress.textContent = '❌ Ошибка: ' + e.message;
+  }
+  setTimeout(() => { progress.textContent = ''; }, 3000);
+}
+
+async function deletePhoto(hotelId, photoId) {
+  if (!confirm('Удалить фото?')) return;
+  const token = currentUser?.token;
+  try {
+    await fetch(`${API}/api/hotels/${hotelId}/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    loadHotelPhotos(hotelId);
+  } catch(e) {
+    console.error('deletePhoto error:', e.message);
+  }
+}
+
+async function loadHotelRooms(hotelId) {
+  try {
+    const token = currentUser?.token;
+    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers:{'Authorization':'Bearer '+token}});
+    const data = await r.json();
+    const rooms = data.room_types || [];
+    const el = document.getElementById('rooms-list');
+    if (!rooms.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px">Номера не добавлены. Нажмите "+ Добавить номер"</div>';
+      return;
+    }
+    el.innerHTML = rooms.map(r => {
+      const photos = (() => { try { return JSON.parse(r.photos||'[]'); } catch(e){ return []; } })();
+      const amenities = (() => { try { return JSON.parse(r.amenities||'[]'); } catch(e){ return []; } })();
+      const amenMap = {wifi:'📶',tv:'📺',ac:'❄️',bath:'🛁',shower:'🚿',balcony:'🌅',fridge:'🧊',kettle:'☕',safe:'🔒',desk:'💼'};
+      return `<div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--faint);align-items:flex-start">
+        ${photos[0] ? `<img src="${photos[0]}" style="width:100px;height:75px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">` : `<div style="width:100px;height:75px;background:var(--faint);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px">🏨</div>`}
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${r.name_ru||'Номер'}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">👥 до ${r.capacity||2} гостей · 🛏 ${r.beds||1} кров. · 📐 ${r.size_sqm||0} м² · 🏠 ${r.total_rooms||1} номеров</div>
+          ${amenities.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${amenities.map(a=>`<span style="font-size:11px;background:var(--faint);padding:2px 6px;border-radius:4px">${amenMap[a]||''} ${a}</span>`).join('')}</div>` : ''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-weight:800;font-size:18px;color:var(--green)">${r.base_price||0} BYN</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px">за ночь</div>
+          <button onclick="editRoom('${r.id}')" style="background:var(--green);color:#c9f135;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">✏️ Изменить</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('loadHotelRooms error:', e.message);
+  }
+}
+
+// ── МОДАЛЬНОЕ ОКНО НОМЕРА ──────────────────────────────
+let rmPhotos = []; // фото текущего редактируемого номера
+
+function openRoomModal(room) {
+  const modal = document.getElementById('room-modal-overlay');
+  document.getElementById('room-modal-title').textContent = room ? 'Редактировать номер' : 'Добавить номер';
+  document.getElementById('rm-id').value = room?.id || '';
+  document.getElementById('rm-name').value = room?.name_ru || '';
+  document.getElementById('rm-price').value = room?.base_price || '';
+  document.getElementById('rm-capacity').value = room?.capacity || 2;
+  document.getElementById('rm-total').value = room?.total_rooms || 1;
+  document.getElementById('rm-size').value = room?.size_sqm || '';
+  document.getElementById('rm-floor').value = room?.floor || '';
+  document.getElementById('rm-desc').value = room?.description_ru || '';
+  // iCal номера
+  if(document.getElementById('rm-ical')){ try{ document.getElementById('rm-ical').value=(JSON.parse(room?.ical_import_urls||'[]')||[]).join('\n'); }catch(e){ document.getElementById('rm-ical').value=''; } }
+  if(document.getElementById('rm-ical-url')) document.getElementById('rm-ical-url').textContent = room?.id ? ('Ваша ссылка для других площадок: '+API+'/api/bookings/ical/'+myHotelId+'/room/'+room.id+'.ics') : 'Сохраните номер, чтобы получить ссылку экспорта.';
+  window._rmCurId = room?.id || '';
+
+  // Кровати
+  document.querySelectorAll('.rm-bed-opt').forEach(el => {
+    el.classList.toggle('on', String(el.dataset.val) === String(room?.beds || 1));
+  });
+
+  // Удобства
+  const amenities = room?.amenities || [];
+  document.querySelectorAll('.rm-amen').forEach(el => {
+    el.classList.toggle('on', amenities.includes(el.dataset.val));
+  });
+
+  // Фото
+  rmPhotos = room?.photos || [];
+  renderRoomPhotos();
+
+  modal.classList.add('open');
+  document.getElementById('rm-name').focus();
+}
+
+async function checkRoomIcal(){
+  var id=window._rmCurId, msg=document.getElementById('rm-ical-msg');
+  if(!id){ if(msg){msg.textContent='Сначала сохраните номер.';msg.style.color='#c00';} return; }
+  // сохраняем текущие ссылки, потом проверяем
+  if(msg){msg.textContent='🔄 Проверяем…';msg.style.color='var(--green)';}
+  try{
+    var token=currentUser?.token;
+    var urls=((document.getElementById('rm-ical')||{}).value||'').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
+    await fetch(`${API}/api/hotels/rooms/${id}`,{method:'PATCH',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({ical_import_urls:JSON.stringify(urls)})});
+    var r=await fetch(`${API}/api/hotels/rooms/${id}/ical-import`,{headers:{'Authorization':'Bearer '+token}});
+    var d=await r.json();
+    if(d.error){ if(msg){msg.textContent='❌ '+d.error;msg.style.color='#c00';} return; }
+    var n=(d.blocked||[]).length;
+    if(msg){ msg.textContent=d.sources?('✅ Занятых дней: '+n):'Ссылки не заданы';msg.style.color=d.sources?'#27500A':'#c00'; }
+  }catch(e){ if(msg){msg.textContent='❌ '+e.message;msg.style.color='#c00';} }
+}
+function closeRoomModal() {
+  document.getElementById('room-modal-overlay').classList.remove('open');
+  rmPhotos = [];
+}
+
+function selectBed(el) {
+  document.querySelectorAll('.rm-bed-opt').forEach(e => e.classList.remove('on'));
+  el.classList.add('on');
+}
+
+function toggleAmen(el) {
+  el.classList.toggle('on');
+}
+
+function addRoomPhoto() {
+  const url = document.getElementById('rm-photo-url').value.trim();
+  if (!url || !url.startsWith('http')) { alert('Введите корректную ссылку'); return; }
+  rmPhotos.push(url);
+  renderRoomPhotos();
+  document.getElementById('rm-photo-url').value = '';
+}
+
+function removeRoomPhoto(idx) {
+  rmPhotos.splice(idx, 1);
+  renderRoomPhotos();
+}
+
+function renderRoomPhotos() {
+  const grid = document.getElementById('rm-photos');
+  if (!rmPhotos.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:12px">Фото не добавлены</div>'; return; }
+  grid.innerHTML = rmPhotos.map((url, i) => `
+    <div class="rm-photo-item">
+      <img src="${url}" onerror="this.src=''" alt="">
+      <button class="rm-photo-del" onclick="removeRoomPhoto(${i})">✕</button>
+    </div>`).join('');
+}
+
+async function saveRoomModal() {
+  const name = document.getElementById('rm-name').value.trim();
+  const price = parseFloat(document.getElementById('rm-price').value);
+  const capacity = parseInt(document.getElementById('rm-capacity').value) || 2;
+  if (!name || !price) { alert('Название и цена обязательны'); return; }
+
+  const beds = parseInt(document.querySelector('.rm-bed-opt.on')?.dataset.val || '1');
+  const amenities = [...document.querySelectorAll('.rm-amen.on')].map(el => el.dataset.val);
+  const roomId = document.getElementById('rm-id').value;
+
+  const data = {
+    name_ru:        name,
+    name_en:        name,
+    base_price:     price,
+    capacity,
+    beds,
+    total_rooms:    parseInt(document.getElementById('rm-total').value) || 1,
+    size_sqm:       parseFloat(document.getElementById('rm-size').value) || 0,
+    description_ru: document.getElementById('rm-desc').value.trim(),
+    ical_import_urls: JSON.stringify(((document.getElementById('rm-ical')||{}).value||'').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean)),
+    amenities:      JSON.stringify(amenities),
+    photos:         JSON.stringify(rmPhotos),
+  };
+
+  const token = currentUser?.token;
+  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+  try {
+    const url = roomId ? `${API}/api/hotels/rooms/${roomId}` : `${API}/api/hotels/rooms`;
+    const method = roomId ? 'PATCH' : 'POST';
+    const body = roomId ? data : {...data, hotel_id: myHotelId};
+    const r = await fetch(url, {method, headers, body: JSON.stringify(body)});
+    if (r.ok) {
+      closeRoomModal();
+      loadHotelRooms(myHotelId);
+    } else {
+      const d = await r.json();
+      alert('Ошибка: ' + (d.error || 'Неизвестная ошибка'));
+    }
+  } catch(e) {
+    console.error('saveRoom error:', e.message);
+  }
+}
+
+function addRoom() { openRoomModal(null); }
+
+async function editRoom(roomId) {
+  const token = currentUser?.token;
+  const r = await fetch(`${API}/api/hotels/${myHotelId}`, {headers:{'Authorization':'Bearer '+token}});
+  const data = await r.json();
+  const room = (data.room_types||[]).find(r => String(r.id) === String(roomId));
+  if (!room) return;
+  openRoomModal(room);
+}
+
+
+// ══════════════════════════════════════════════════════
+// КАЛЕНДАРЬ ЦЕН И ДОСТУПНОСТИ
+// ══════════════════════════════════════════════════════
+var _calRooms=[];
+var _calRoomId=null;
+var _calBase=0;
+var _calTotal=1;
+var _calView=new Date();      // отображаемый месяц
+var _calData={};              // 'YYYY-MM-DD' -> {price, rooms_left}
+
+async function calInit(){
+  if(!myHotelId){ setTimeout(calInit,400); return; }
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/${myHotelId}`,{headers:{'Authorization':'Bearer '+token}});
+    const data=await r.json();
+    _calRooms=(data.room_types||[]).filter(rt=>rt.is_active!==false);
+    const sel=document.getElementById('cal-room');
+    if(!_calRooms.length){
+      sel.innerHTML='<option value="">Сначала добавьте номера в разделе «Мой отель»</option>';
+      document.getElementById('cal-controls').style.display='none';
+      return;
+    }
+    sel.innerHTML=_calRooms.map(rt=>`<option value="${rt.id}">${rt.name_ru||'Номер'} — ${rt.base_price||0} BYN</option>`).join('');
+    _calRoomId=_calRooms[0].id;
+    calLoad();
+  }catch(e){ console.error('calInit',e.message); }
+}
+
+function calMonthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+async function calLoad(){
+  const sel=document.getElementById('cal-room');
+  _calRoomId=sel.value||_calRoomId;
+  const room=_calRooms.find(r=>String(r.id)===String(_calRoomId));
+  if(!room) return;
+  _calBase=parseFloat(room.base_price)||0;
+  _calTotal=parseInt(room.total_rooms)||1;
+  document.getElementById('cal-base').textContent=_calBase;
+  document.getElementById('cal-controls').style.display='block';
+
+  // период: текущий показываемый месяц ± запас
+  const from=new Date(_calView.getFullYear(),_calView.getMonth(),1).toISOString().slice(0,10);
+  const to=new Date(_calView.getFullYear(),_calView.getMonth()+1,0).toISOString().slice(0,10);
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/calendar?from=${from}&to=${to}`,{headers:{'Authorization':'Bearer '+token}});
+    const data=await r.json();
+    _calData={};
+    (data.days||[]).forEach(d=>{ _calData[d.date]={price:d.price,rooms_left:d.rooms_left}; });
+  }catch(e){ console.error('calLoad',e.message); _calData={}; }
+  // Авто-подтягивание чужой занятости (Booking/Avito и др.) для этого номера
+  try{
+    const token2=currentUser?.token;
+    const ri=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/ical-import`,{headers:{'Authorization':'Bearer '+token2}});
+    const rd=await ri.json();
+    window._calExternal={};
+    (rd.blocked||[]).forEach(function(d){ window._calExternal[d]=true; });
+  }catch(e){ window._calExternal={}; }
+  calRender();
+}
+
+function calMonth(delta){
+  _calView=new Date(_calView.getFullYear(),_calView.getMonth()+delta,1);
+  calLoad();
+}
+
+function calRender(){
+  const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  document.getElementById('cal-month-label').textContent=months[_calView.getMonth()]+' '+_calView.getFullYear();
+  const grid=document.getElementById('cal-grid');
+  const wd=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  let html=wd.map(w=>`<div style="text-align:center;font-size:11px;color:var(--muted);font-weight:600;padding:4px 0">${w}</div>`).join('');
+
+  const first=new Date(_calView.getFullYear(),_calView.getMonth(),1);
+  let startDow=first.getDay(); startDow=(startDow===0)?6:startDow-1; // пн=0
+  for(let i=0;i<startDow;i++) html+='<div></div>';
+
+  const daysIn=new Date(_calView.getFullYear(),_calView.getMonth()+1,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  for(let day=1;day<=daysIn;day++){
+    const dt=_calView.getFullYear()+'-'+String(_calView.getMonth()+1).padStart(2,'0')+'-'+String(day).padStart(2,'0');
+    const rec=_calData[dt];
+    const ext=window._calExternal&&window._calExternal[dt];
+    let bg='#fff',border='1px solid var(--faint)',price=_calBase,closed=false,label='';
+    if(ext){ bg='#fff4e0';border='1px solid #f0c060';closed=true;label='занято (площадка)'; }
+    else if(rec){
+      if(parseInt(rec.rooms_left)===0){ bg='var(--red-pale)';closed=true;label='закрыто'; }
+      else { if(rec.price!=null)price=Math.round(rec.price); bg='var(--green-pale)'; label=(_calTotal>1?rec.rooms_left+'/'+_calTotal+' · ':'')+price+' BYN'; }
+    } else {
+      label=(_calTotal>1?_calTotal+'/'+_calTotal+' · ':'')+price+' BYN';
+    }
+    const past=dt<todayStr;
+    html+=`<div onclick="${past||ext?'':`calDayClick('${dt}')`}" style="border:${border};background:${bg};border-radius:8px;padding:6px 4px;min-height:54px;cursor:${past||ext?'default':'pointer'};opacity:${past?.4:1};text-align:center" ${ext?'title="Занято на другой площадке — подтянуто автоматически"':''}>
+      <div style="font-size:13px;font-weight:600">${day}</div>
+      <div style="font-size:9.5px;color:${closed?(ext?'#b8860b':'var(--red)'):'var(--muted)'};margin-top:2px;line-height:1.2">${label}</div>
+    </div>`;
+  }
+  grid.innerHTML=html;
+}
+
+// Клик по дню — переключение: базовая → закрыто → обратно (быстрое действие)
+async function calDayClick(dt){
+  const rec=_calData[dt];
+  let body;
+  if(rec && parseInt(rec.rooms_left)===0){
+    // закрыто → открыть по базовой
+    body={dates:[dt],price:_calBase,rooms_left:_calTotal};
+  } else {
+    // открыто → закрыть
+    body={dates:[dt],closed:true};
+  }
+  await calPut(body);
+  calLoad();
+}
+
+async function calPut(body){
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/calendar`,{
+      method:'PUT',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify(body)
+    });
+    const d=await r.json();
+    if(!r.ok){ calMsg(d.error||'Ошибка',false); return false; }
+    return true;
+  }catch(e){ calMsg(e.message,false); return false; }
+}
+
+async function calApplyRange(closed){
+  const from=document.getElementById('cal-from').value;
+  const to=document.getElementById('cal-to').value;
+  if(!from||!to){ calMsg('Укажите период (с и по)',false); return; }
+  const price=document.getElementById('cal-price').value;
+  let body={from,to};
+  if(closed){ body.closed=true; }
+  else { if(!price){ calMsg('Укажите цену',false); return; } body.price=parseFloat(price); }
+  const ok=await calPut(body);
+  if(ok){ calMsg(closed?'Даты закрыты':'Цена задана на период',true); calLoad(); }
+}
+
+async function calWeekend(){
+  const from=document.getElementById('cal-from').value;
+  const to=document.getElementById('cal-to').value;
+  const percent=document.getElementById('cal-wknd').value;
+  if(!from||!to){ calMsg('Укажите период для наценки',false); return; }
+  if(!percent){ calMsg('Укажите процент наценки',false); return; }
+  try{
+    const token=currentUser?.token;
+    const r=await fetch(`${API}/api/hotels/rooms/${_calRoomId}/weekend-pricing`,{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body:JSON.stringify({from,to,percent:parseFloat(percent)})
+    });
+    const d=await r.json();
+    if(!r.ok){ calMsg(d.error||'Ошибка',false); return; }
+    calMsg(`Выходные: ${d.weekend_price} BYN, обновлено дней: ${d.days_updated}`,true);
+    calLoad();
+  }catch(e){ calMsg(e.message,false); }
+}
+
+function calMsg(text,ok){
+  const m=document.getElementById('cal-msg');
+  m.style.display='block';
+  m.textContent=text;
+  m.style.background=ok?'#EAF3DE':'#fef2f2';
+  m.style.color=ok?'#27500A':'#dc2626';
+  setTimeout(()=>{m.style.display='none';},4000);
+}
+
+</script>
+
+<!-- МОДАЛЬНОЕ ОКНО НОМЕРА -->
+<div class="room-modal-overlay" id="room-modal-overlay" onclick="if(event.target===this)closeRoomModal()">
+  <div class="room-modal">
+    <div class="room-modal-head">
+      <div class="room-modal-title" id="room-modal-title">Добавить номер</div>
+      <button class="room-modal-close" onclick="closeRoomModal()">✕</button>
+    </div>
+    <div class="room-modal-body">
+      <input type="hidden" id="rm-id">
+      <div class="rm-field">
+        <label class="rm-label">Название номера *</label>
+        <input class="rm-input" id="rm-name" placeholder="Например: Стандарт, Люкс, Делюкс...">
+      </div>
+      <div class="rm-grid">
+        <div class="rm-field">
+          <label class="rm-label">Цена за ночь (BYN) *</label>
+          <input class="rm-input" id="rm-price" type="number" min="1" placeholder="150">
+        </div>
+        <div class="rm-field">
+          <label class="rm-label">Макс. гостей *</label>
+          <input class="rm-input" id="rm-capacity" type="number" min="1" max="10" placeholder="2">
+        </div>
+      </div>
+      <div class="rm-grid3">
+        <div class="rm-field">
+          <label class="rm-label">Кол-во номеров</label>
+          <input class="rm-input" id="rm-total" type="number" min="1" placeholder="1">
+        </div>
+        <div class="rm-field">
+          <label class="rm-label">Площадь (м²)</label>
+          <input class="rm-input" id="rm-size" type="number" min="0" placeholder="25">
+        </div>
+        <div class="rm-field">
+          <label class="rm-label">Этаж</label>
+          <input class="rm-input" id="rm-floor" type="number" min="0" placeholder="2">
+        </div>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Тип кровати</label>
+        <div class="rm-bed-select" id="rm-beds">
+          <div class="rm-bed-opt on" data-val="1" onclick="selectBed(this)">🛏 1 кровать</div>
+          <div class="rm-bed-opt" data-val="2" onclick="selectBed(this)">🛏🛏 2 кровати</div>
+          <div class="rm-bed-opt" data-val="3" onclick="selectBed(this)">🛏🛏🛏 3 кровати</div>
+          <div class="rm-bed-opt" data-val="0" onclick="selectBed(this)">🛋 Диван-кровать</div>
+        </div>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Удобства в номере</label>
+        <div class="rm-amenities" id="rm-amenities">
+          <div class="rm-amen" data-val="wifi" onclick="toggleAmen(this)">📶 Wi-Fi</div>
+          <div class="rm-amen" data-val="tv" onclick="toggleAmen(this)">📺 TV</div>
+          <div class="rm-amen" data-val="ac" onclick="toggleAmen(this)">❄️ Кондиционер</div>
+          <div class="rm-amen" data-val="bath" onclick="toggleAmen(this)">🛁 Ванна</div>
+          <div class="rm-amen" data-val="shower" onclick="toggleAmen(this)">🚿 Душ</div>
+          <div class="rm-amen" data-val="balcony" onclick="toggleAmen(this)">🌅 Балкон</div>
+          <div class="rm-amen" data-val="fridge" onclick="toggleAmen(this)">🧊 Холодильник</div>
+          <div class="rm-amen" data-val="kettle" onclick="toggleAmen(this)">☕ Чайник</div>
+          <div class="rm-amen" data-val="safe" onclick="toggleAmen(this)">🔒 Сейф</div>
+          <div class="rm-amen" data-val="desk" onclick="toggleAmen(this)">💼 Рабочий стол</div>
+        </div>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Описание</label>
+        <textarea class="rm-input" id="rm-desc" rows="3" placeholder="Опишите номер..." style="resize:vertical"></textarea>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">🔒 Синхронизация календаря номера (iCal)</label>
+        <div style="font-size:11.5px;color:var(--muted);margin-bottom:6px">Для отелей: вставьте iCal-ссылки (.ics) этого номера с Booking/Avito/Суточно — по одной на строку. Занятые там даты закроются у вас (защита от овербукинга по номеру).</div>
+        <textarea class="rm-input" id="rm-ical" rows="2" placeholder="https://…/ical?room=…" style="resize:vertical;font-family:monospace;font-size:11px"></textarea>
+        <div id="rm-ical-url" style="font-size:11px;color:var(--muted);margin-top:6px;word-break:break-all"></div>
+        <button type="button" onclick="checkRoomIcal()" style="margin-top:6px;background:#fff;color:var(--green);border:1px solid var(--green);border-radius:8px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer">🔄 Проверить занятость номера</button>
+        <span id="rm-ical-msg" style="font-size:11px;margin-left:8px"></span>
+      </div>
+      <div class="rm-field">
+        <label class="rm-label">Фото номера</label>
+        <div class="rm-photos" id="rm-photos"></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <input class="rm-input" id="rm-photo-url" placeholder="Ссылка на фото (https://...)" style="flex:1">
+          <button onclick="addRoomPhoto()" style="background:var(--green);color:#c9f135;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">+ Фото</button>
+        </div>
+      </div>
+    </div>
+    <div class="room-modal-foot">
+      <button class="rm-btn rm-btn-cancel" onclick="closeRoomModal()">Отмена</button>
+      <button class="rm-btn rm-btn-save" onclick="saveRoomModal()">💾 Сохранить</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
