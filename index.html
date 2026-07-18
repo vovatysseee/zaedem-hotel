@@ -336,6 +336,10 @@ tr:hover td{background:var(--surface)}
                 <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Адрес</label>
                 <input id="h-address" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="Адрес">
               </div>
+              <div style="margin-bottom:14px">
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--green);margin-bottom:5px">Город * <span style="color:#b45309;font-weight:400">— без него объект не появится в поиске</span></label>
+                <select id="h-city" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff"><option value="">— выберите город —</option></select>
+              </div>
               <div>
                 <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Телефон</label>
                 <input id="h-phone" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="+375 XX XXX-XX-XX">
@@ -406,7 +410,16 @@ tr:hover td{background:var(--surface)}
             </div>
             <div style="margin-bottom:16px">
               <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Правила отмены (видят гости при отмене)</label>
+              <select id="h-cancel-pick" onchange="cancelPickChange()" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff;margin-bottom:8px">
+                <option value="flex">Гибкие — бесплатная отмена до дня заезда</option>
+                <option value="d1">Бесплатно за 1 день до заезда</option>
+                <option value="d3">Бесплатно за 3 дня до заезда</option>
+                <option value="d7">Бесплатно за 7 дней до заезда</option>
+                <option value="nonref">Невозвратный тариф</option>
+                <option value="custom">Своя формулировка…</option>
+              </select>
               <textarea id="h-cancel" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Например: бесплатная отмена за 3 дня до заезда · позже удерживается стоимость 1 ночи · при неявке — без возврата"></textarea>
+              <div style="font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5">Выбранное правило действует автоматически: гость по ссылке из ваучера сможет отменить бронь только пока правило это разрешает. «Своя формулировка» — только текст в ваучере, гость сможет отменять до дня заезда.</div>
             <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
           </div>
         </div>
@@ -852,6 +865,8 @@ async function loadHotelData() {
     if(document.getElementById('h-checkout')) document.getElementById('h-checkout').value = h.checkout_time || '12:00';
     if(document.getElementById('h-rules')) document.getElementById('h-rules').value = h.house_rules || '';
     if(document.getElementById('h-cancel')) document.getElementById('h-cancel').value = h.cancel_rules || '';
+    cancelPickInit(h.cancel_rules||'');
+    loadCityOptions(h.city_id!=null?h.city_id:null);
     if(document.getElementById('ical-import')){ try{ document.getElementById('ical-import').value=(JSON.parse(h.ical_import_urls||'[]')||[]).join('\n'); }catch(e){} }
     if (h.name_ru) document.getElementById('sb-hotel-name').textContent = h.name_ru;
 
@@ -865,6 +880,44 @@ async function loadHotelData() {
   }
 }
 
+// Канонические правила отмены: этот же текст сервер УМЕЕТ исполнять при отмене брони
+var CANCEL_PRESETS={
+  flex:  'Гибкие правила: бесплатная отмена до дня заезда.',
+  d1:    'Бесплатная отмена за 1 день до заезда. Позже — предоплата не возвращается.',
+  d3:    'Бесплатная отмена за 3 дня до заезда. Позже — предоплата не возвращается.',
+  d7:    'Бесплатная отмена за 7 дней до заезда. Позже — предоплата не возвращается.',
+  nonref:'Невозвратный тариф: при отмене предоплата не возвращается.'
+};
+function cancelPickChange(){
+  var pick=document.getElementById('h-cancel-pick'), ta=document.getElementById('h-cancel');
+  if(!pick||!ta)return;
+  if(pick.value==='custom'){ ta.style.display='block'; ta.focus(); return; }
+  ta.value=CANCEL_PRESETS[pick.value]||'';
+  ta.style.display='none'; // канонический текст руками не правится — иначе перестанет исполняться
+}
+function cancelPickInit(text){
+  var pick=document.getElementById('h-cancel-pick'), ta=document.getElementById('h-cancel');
+  if(!pick||!ta)return;
+  var t=String(text||'').trim();
+  var hit='custom';
+  for(var k in CANCEL_PRESETS){ if(CANCEL_PRESETS[k]===t){hit=k;break;} }
+  if(!t)hit='flex';
+  pick.value=hit;
+  if(hit!=='custom'){ ta.value=t||CANCEL_PRESETS.flex; ta.style.display='none'; }
+  else { ta.style.display='block'; }
+}
+// Города: подгружаем справочник и отмечаем город объекта
+async function loadCityOptions(selectedId){
+  try{
+    var r=await fetch(`${API}/api/cities`);
+    var rows=await r.json();
+    var sel=document.getElementById('h-city');
+    if(sel&&Array.isArray(rows)){
+      sel.innerHTML='<option value="">— выберите город —</option>'+rows.map(function(c){return '<option value="'+c.id+'">'+String(c.name_ru||c.name_en||'').replace(/[<>&"]/g,'')+'</option>';}).join('');
+      if(selectedId!=null)sel.value=String(selectedId);
+    }
+  }catch(e){}
+}
 async function saveHotelInfo() {
   if (!myHotelId) return;
   const token = currentUser?.token;
@@ -884,7 +937,13 @@ async function saveHotelInfo() {
     checkout_time:  (document.getElementById('h-checkout')||{}).value||'',
     house_rules:    (document.getElementById('h-rules')||{}).value.trim(),
     cancel_rules:   (document.getElementById('h-cancel')||{}).value.trim(),
+    city_id:        (document.getElementById('h-city')||{}).value||null,
   };
+  if(!body.city_id){
+    var msg0=document.getElementById('hotel-save-msg');
+    if(msg0){ msg0.textContent='⚠️ Выберите город — без него объект не появится в поиске'; msg0.style.cssText='display:block;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600'; }
+    return;
+  }
   try {
     const r = await fetch(`${API}/api/hotels/${myHotelId}`, {method:'PATCH',headers,body:JSON.stringify(body)});
     const d = await r.json();
