@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Заедем.by — Кабинет отельера</title>
+<title>Заедем.by — Личный кабинет партнёра</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' fill='%23c9f135' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -144,7 +144,7 @@ tr:hover td{background:var(--surface)}
 <div class="login-wrap" id="loginWrap">
   <div class="login-box">
     <div class="login-logo">Заедем<span style="color:var(--lime)">.by</span></div>
-    <div class="login-sub">Кабинет отельера</div>
+    <div class="login-sub">Личный кабинет партнёра</div>
     <div class="login-field">
       <label>Email</label>
       <input type="email" id="loginEmail" placeholder="hotel@example.com">
@@ -452,7 +452,7 @@ tr:hover td{background:var(--surface)}
       <!-- PROFILE -->
       <div class="page" id="page-profile">
         <div class="section">
-          <div class="sec-head"><span class="sec-title">Профиль отельера</span></div>
+          <div class="sec-head"><span class="sec-title">Профиль партнёра</span></div>
           <div style="padding:1.2rem" id="profile-content">
             <div class="loading"><div class="spin"></div><br>Загрузка...</div>
           </div>
@@ -554,6 +554,7 @@ function showPage(name, el) {
   if (name === 'bookings') renderBookingsTable(myBookings);
   if (name === 'hotel') loadHotelData();
   if (name === 'calendar') calInit();
+  if (name === 'profile') renderProfile(); // раньше вкладка «Профиль» оставалась пустой — рендер не вызывался
 }
 
 // ── LOAD BOOKINGS ──
@@ -724,12 +725,15 @@ function mvdAnketa(bookingNum){
 
 function renderProfile() {
   const u = currentUser;
-  document.getElementById('profile-content').innerHTML = `
+  const box = document.getElementById('profile-content');
+  if (!box) return;
+  if (!u) { box.innerHTML = '<div style="color:var(--muted);font-size:13px">Сессия истекла — обновите страницу и войдите заново.</div>'; return; }
+  box.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
       <div><b style="color:var(--muted);font-size:11px">Имя</b><br>${u.name||u.first_name||'—'}</div>
       <div><b style="color:var(--muted);font-size:11px">Email</b><br>${u.email}</div>
       <div><b style="color:var(--muted);font-size:11px">Телефон</b><br>${u.phone||'—'}</div>
-      <div><b style="color:var(--muted);font-size:11px">Роль</b><br>Отельер</div>
+      <div><b style="color:var(--muted);font-size:11px">Роль</b><br>Партнёр</div>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--faint);font-size:12px;color:var(--muted)">
       Для изменения данных напишите на <a href="mailto:admin@zaedem.by" style="color:var(--green)">admin@zaedem.by</a>
@@ -912,9 +916,11 @@ async function loadCityOptions(selectedId){
     var r=await fetch(`${API}/api/cities`);
     var rows=await r.json();
     var sel=document.getElementById('h-city');
-    if(sel&&Array.isArray(rows)){
+    if(sel&&Array.isArray(rows)&&rows.length){
       sel.innerHTML='<option value="">— выберите город —</option>'+rows.map(function(c){return '<option value="'+c.id+'">'+String(c.name_ru||c.name_en||'').replace(/[<>&"]/g,'')+'</option>';}).join('');
       if(selectedId!=null)sel.value=String(selectedId);
+    } else if(sel){
+      sel.innerHTML='<option value="">Справочник городов недоступен — обновите страницу</option>';
     }
   }catch(e){}
 }
