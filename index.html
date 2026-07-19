@@ -552,7 +552,7 @@ function showPage(name, el) {
   document.getElementById('pageTitle').textContent = titles[name] || name;
   try { sessionStorage.setItem('cab_page', name); if(location.hash.replace('#','')!==name) history.replaceState(null,'','#'+name); } catch(e){}
   if (name === 'bookings') renderBookingsTable(myBookings);
-  if (name === 'hotel') loadHotelData();
+  if (name === 'hotel') { try{ loadCityOptions(null); }catch(e){} loadHotelData(); }
   if (name === 'calendar') calInit();
   if (name === 'profile') renderProfile(); // раньше вкладка «Профиль» оставалась пустой — рендер не вызывался
 }
@@ -912,9 +912,11 @@ function cancelPickInit(text){
 }
 // Города: подгружаем справочник и отмечаем город объекта
 async function loadCityOptions(selectedId){
+  var selE=document.getElementById('h-city');
   try{
-    var r=await fetch(`${API}/api/cities`);
+    var r=await fetch(`${API}/api/cities?_=`+Date.now(),{cache:'no-store'}); // мимо любых кэшей
     var rows=await r.json();
+    if(!r.ok){ if(selE)selE.innerHTML='<option value="">Ошибка городов: '+(rows&&rows.error||r.status)+'</option>'; console.error('cities:',rows); return; }
     var sel=document.getElementById('h-city');
     if(sel&&Array.isArray(rows)&&rows.length){
       sel.innerHTML='<option value="">— выберите город —</option>'+rows.map(function(c){return '<option value="'+c.id+'">'+String(c.name_ru||c.name_en||'').replace(/[<>&"]/g,'')+'</option>';}).join('');
@@ -922,7 +924,10 @@ async function loadCityOptions(selectedId){
     } else if(sel){
       sel.innerHTML='<option value="">Справочник городов недоступен — обновите страницу</option>';
     }
-  }catch(e){}
+  }catch(e){
+    if(selE)selE.innerHTML='<option value="">Сеть недоступна — обновите страницу</option>';
+    console.error('cities fetch:',e);
+  }
 }
 async function saveHotelInfo() {
   if (!myHotelId) return;
