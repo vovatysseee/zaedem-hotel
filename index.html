@@ -100,6 +100,9 @@ tr:hover td{background:var(--surface)}
 .ical-desc{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.5}
 .ical-url{background:#fff;border:1px solid var(--faint);border-radius:8px;padding:8px 12px;font-size:11px;font-family:monospace;color:var(--ink);word-break:break-all;margin-bottom:10px}
 .copy-btn{padding:7px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700}
+.copy-btn:disabled{opacity:.55}
+.pw-input{width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)}
+.pw-input:focus{outline:none;border-color:var(--green)}
 
 /* PAGE */
 .page{display:none}
@@ -738,7 +741,71 @@ function renderProfile() {
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--faint);font-size:12px;color:var(--muted)">
       Для изменения данных напишите на <a href="mailto:admin@zaedem.by" style="color:var(--green)">admin@zaedem.by</a>
     </div>
+
+    <!-- ── Смена пароля ─────────────────────────────────
+         Раньше пароль менялся только через админа. Теперь партнёр меняет его сам. -->
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--faint)">
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px">🔑 Смена пароля</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">
+        После смены вход на других устройствах потребует нового пароля — это защитит вас, если старый кто-то узнал.
+      </div>
+      <div style="display:grid;gap:10px;max-width:380px">
+        <input type="password" id="pw-old" class="pw-input" placeholder="Текущий пароль" autocomplete="current-password">
+        <input type="password" id="pw-new" class="pw-input" placeholder="Новый пароль — минимум 8 символов" autocomplete="new-password">
+        <input type="password" id="pw-new2" class="pw-input" placeholder="Новый пароль ещё раз" autocomplete="new-password">
+        <div>
+          <button class="copy-btn" id="pw-btn" onclick="changePassword()">Сменить пароль</button>
+        </div>
+        <div id="pw-msg" style="display:none;font-size:12px;font-weight:600;padding:9px 12px;border-radius:8px;line-height:1.45"></div>
+      </div>
+    </div>
   `;
+}
+
+// ── Смена пароля партнёром ──────────────────────────
+function _pwMsg(text, ok){
+  const m = document.getElementById('pw-msg'); if (!m) return;
+  m.style.display = 'block';
+  m.textContent = text;
+  m.style.background = ok ? 'var(--green-pale)' : 'var(--red-pale)';
+  m.style.color = ok ? 'var(--green)' : 'var(--red)';
+}
+
+async function changePassword(){
+  const oldP = (document.getElementById('pw-old')||{}).value || '';
+  const nP   = (document.getElementById('pw-new')||{}).value || '';
+  const nP2  = (document.getElementById('pw-new2')||{}).value || '';
+  const btn  = document.getElementById('pw-btn');
+
+  if (!oldP || !nP)      return _pwMsg('Заполните все поля', false);
+  if (nP.length < 8)     return _pwMsg('Новый пароль — минимум 8 символов', false);
+  if (nP !== nP2)        return _pwMsg('Новые пароли не совпадают', false);
+  if (nP === oldP)       return _pwMsg('Новый пароль совпадает с текущим', false);
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Меняем…'; }
+  try {
+    const r = await fetch(`${API}/api/users/change-password`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Authorization':'Bearer ' + (currentUser && currentUser.token)},
+      body: JSON.stringify({ oldPassword: oldP, newPassword: nP })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || !d.success) { _pwMsg(d.error || 'Не удалось сменить пароль', false); return; }
+
+    // Сервер отзывает все прежние сессии и присылает свежий токен — иначе нас
+    // выбросило бы из кабинета сразу после смены собственного пароля.
+    if (d.token && currentUser) {
+      currentUser.token = d.token;
+      try { sessionStorage.setItem('hotel_user', JSON.stringify(currentUser)); } catch(e){}
+    }
+    ['pw-old','pw-new','pw-new2'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
+    _pwMsg('✅ Пароль изменён. На других устройствах нужно будет войти заново.', true);
+    showToast('Пароль изменён');
+  } catch(e) {
+    _pwMsg('Ошибка соединения', false);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Сменить пароль'; }
+  }
 }
 
 function pickSyncMode(mode){
