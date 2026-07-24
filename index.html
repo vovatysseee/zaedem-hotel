@@ -1,6 +1,27 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+  font-src 'self' data: https://fonts.gstatic.com;
+  img-src 'self' data: blob: https:;
+  connect-src 'self' https://api.zaedem.by;
+  object-src 'none';
+  base-uri 'none';
+  form-action 'self';
+">
+<!-- ═ CSP: ВТОРОЙ РУБЕЖ ПРОТИВ XSS ═
+     Панель отдаётся GitHub Pages, поэтому helmet на бэкенде её не защищает.
+     Обработчики здесь inline (onclick=...), поэтому 'unsafe-inline' убрать нельзя —
+     и внедрённый скрипт формально запустится. Но смысл в другом:
+     connect-src разрешает обращаться ТОЛЬКО к нашему API. Украсть токен и отправить
+     его на чужой сервер уже не выйдет — браузер оборвёт запрос.
+     object-src и base-uri закрывают обходные пути через <object> и <base>.
+     img-src допускает любые https-адреса: фото объектов партнёры задают ссылками
+     на свои хостинги. Это оставляет узкий канал утечки через картинку — в кабинете
+     он приемлем, в админке закрыт полностью. -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Заедем.by — Личный кабинет партнёра</title>
