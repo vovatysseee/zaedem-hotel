@@ -486,7 +486,13 @@ async function doLogin() {
     });
     const d = await r.json();
     if (!r.ok || !d.success) { showErr(d.error || 'Неверный email или пароль'); return; }
-    if (d.user.role !== 'hotelowner' && d.user.role !== 'admin') {
+    // ═ ИСПРАВЛЕНО ═ В базе роль партнёра встречается в ДВУХ написаниях: 'hotelowner'
+    // (создаётся админкой при одобрении заявки) и 'hotel_owner' (создаётся при
+    // подтверждении объекта по claim-ссылке). Проверялось только первое — поэтому
+    // партнёры, пришедшие по ссылке, получали «Доступ только для отельеров»
+    // и не могли войти, хотя система писала им, что кабинет открыт.
+    const _r = d.user.role;
+    if (_r !== 'hotelowner' && _r !== 'hotel_owner' && _r !== 'admin') {
       showErr('Доступ только для отельеров'); return;
     }
     currentUser = {...d.user, token: d.token};
