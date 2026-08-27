@@ -536,9 +536,43 @@ function doLogout() {
   location.reload();
 }
 
+// ══════════════════════════════════════════════════════
+// АВТОВЫХОД ПО БЕЗДЕЙСТВИЮ
+// ══════════════════════════════════════════════════════
+// Кабинет показывает персональные данные гостей — ФИО, телефоны, почту,
+// а по иностранцам ещё и паспортные данные в анкете МВД. Сессия жила, пока
+// открыта вкладка: оставленный на стойке компьютер означал доступ к ним
+// на неограниченное время. То же правило, что в админке — 60 минут:
+// у стойки работают дольше, чем в панели администратора.
+const IDLE_LIMIT_MS = 60 * 60 * 1000;
+let _idleTimer = null, _idleWarnTimer = null;
+function resetIdleTimer() {
+  clearTimeout(_idleTimer); clearTimeout(_idleWarnTimer);
+  if (!sessionStorage.getItem('hotel_user')) return;
+  _idleWarnTimer = setTimeout(function(){
+    try { const m=document.getElementById('cal-msg'); if(m){} } catch(e){}
+    console.warn('Сессия закроется через минуту без действий');
+  }, IDLE_LIMIT_MS - 60000);
+  _idleTimer = setTimeout(function(){
+    sessionStorage.removeItem('hotel_user');
+    alert('Сессия завершена из-за бездействия. Войдите заново.');
+    location.reload();
+  }, IDLE_LIMIT_MS);
+}
+['click','keydown','mousemove','touchstart','scroll'].forEach(function(ev){
+  document.addEventListener(ev, function(){
+    const now = Date.now();
+    if (!resetIdleTimer._last || now - resetIdleTimer._last > 30000) {
+      resetIdleTimer._last = now;
+      resetIdleTimer();
+    }
+  }, { passive: true });
+});
+
 function initApp() {
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
+  resetIdleTimer();
   // Set user info
   const u = currentUser;
   const name = u.name || u.first_name || u.email;
@@ -557,19 +591,50 @@ function initApp() {
   showPage(savedPage);
 }
 
-// Check saved session / вход по токену из URL (админ-impersonate)
+// Вход по токену из адреса (админ заходит в кабинет владельца).
+// ═ БЕЗОПАСНОСТЬ ═ Раньше ЛЮБАЯ строка в ?token= молча становилась сессией.
+// Достаточно было прислать владельцу ссылку с чужим токеном — и он продолжал
+// работу уже в чужом кабинете: заливал фото, правил цены и календарь не у себя,
+// а у того, кто прислал ссылку (подмена сессии).
+//
+// Теперь: разбираем токен, проверяем срок и обязательные поля, а если сессия
+// уже открыта на другого человека — спрашиваем подтверждение. Подпись здесь
+// проверить нельзя, её проверяет сервер на каждом запросе; задача этих проверок
+// в другом — не дать подменить сессию незаметно для человека.
 var _urlToken = new URLSearchParams(location.search).get('token');
 if (_urlToken) {
+  // Токен убираем из адреса ДО любых проверок: иначе при отказе он остался бы
+  // в строке браузера и попал в историю.
+  try { history.replaceState({}, '', location.pathname); } catch (e) {}
   try {
-    var _p = JSON.parse(atob(_urlToken.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
-    currentUser = { id:_p.id, email:_p.email, role:_p.role, name:_p.email, token:_urlToken };
-    sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
-    history.replaceState({}, '', location.pathname); // убираем токен из адреса
-    initApp();
-  } catch (e) { console.error('token login', e); }
+    var _parts = String(_urlToken).split('.');
+    if (_parts.length !== 3) throw new Error('неверный формат токена');
+    var _p = JSON.parse(atob(_parts[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (!_p || !_p.id || !_p.email) throw new Error('нет обязательных полей');
+    if (_p.exp && _p.exp * 1000 < Date.now()) throw new Error('срок истёк');
+
+    var _prev = null;
+    try { _prev = JSON.parse(sessionStorage.getItem('hotel_user') || 'null'); } catch (e) {}
+    var _ok = true;
+    if (_prev && _prev.email && _prev.email !== _p.email) {
+      _ok = confirm('Ссылка открывает кабинет другого пользователя (' + _p.email +
+                    ').\n\nСейчас выполнен вход как ' + _prev.email +
+                    '.\n\nПереключиться? Текущая сессия будет закрыта.');
+    }
+    if (_ok) {
+      currentUser = { id:_p.id, email:_p.email, role:_p.role, name:_p.email, token:_urlToken };
+      sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
+      initApp();
+    } else if (_prev) {
+      currentUser = _prev; initApp();
+    }
+  } catch (e) {
+    console.error('token login:', e.message);
+    alert('Ссылка для входа недействительна или устарела. Войдите обычным способом.');
+  }
 } else {
   const saved = sessionStorage.getItem('hotel_user');
-  if (saved) { currentUser = JSON.parse(saved); initApp(); }
+  if (saved) { try { currentUser = JSON.parse(saved); initApp(); } catch(e){ sessionStorage.removeItem('hotel_user'); } }
 }
 
 // ── NAV ──
@@ -682,6 +747,25 @@ function updateStats() {
 }
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+// ═ БЕЗОПАСНОСТЬ ═ Экранирование для значений, попадающих ВНУТРЬ onclick='...'.
+// esc() для этого не годится: он превращает кавычку в &#39;, а браузер разбирает
+// сущности ДО того, как отдаёт содержимое обработчика движку JS — то есть
+// закрывающая кавычка восстанавливается и строка разрывается.
+// Здесь кавычка и обратный слэш экранируются на уровне JS-строки.
+function escAttr(v){
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'")
+    .replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\r?\n/g,' ');
+}
+
+// Ссылка для атрибута src/href. Пропускаем только безопасные схемы:
+// javascript: и data:text/html в src картинки — рабочий способ выполнить код.
+function safeUrl(u){
+  const s = String(u == null ? '' : u).trim();
+  if (/^(https?:|blob:|\/|data:image\/)/i.test(s)) return esc(s);
+  return '';
+}
 function renderDashboard() {
   const last5 = myBookings.slice(0, 5);
   document.getElementById('dash-bookings').innerHTML = last5.length ? `
@@ -689,7 +773,7 @@ function renderDashboard() {
       <tr><th>Бронь</th><th>Гость</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Сумма</th><th>Статус</th></tr>
       ${last5.map(b => `
         <tr>
-          <td><b>${b.booking_num}</b></td>
+          <td><b>${esc(b.booking_num)}</b></td>
           <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></td>
           <td>${esc(b.hotel_name||'—')}</td>
           <td>${fmtDate(b.check_in)}</td>
@@ -706,19 +790,19 @@ function renderBookingsTable(bookings) {
       <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr>
       ${bookings.map(b => { var foreign=b.guest_citizenship && b.guest_citizenship!=='Беларусь'; return `
         <tr${foreign?' style="background:#fff5f5"':''}>
-          <td><b style="color:var(--green)">${b.booking_num}</b></td>
+          <td><b style="color:var(--green)">${esc(b.booking_num)}</b></td>
           <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(b.guest_citizenship)} — регистрация в МВД</span>`:''}</td>
           <td>${esc(b.guest_phone||'—')}</td>
           <td>${esc(b.hotel_name||'—')}</td>
           <td>${fmtDate(b.check_in)}</td>
           <td>${fmtDate(b.check_out)}</td>
-          <td>${b.nights||1}</td>
-          <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${b.currency||'BYN'}</b></td>
+          <td>${esc(b.nights||1)}</td>
+          <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${esc(b.currency||'BYN')}</b></td>
           <td>${statusBadge(b.status)}</td>
           <td style="display:flex;flex-direction:column;gap:4px">
-            ${foreign?`<button onclick="mvdAnketa('${b.booking_num}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📋 Анкета МВД</button>`:''}
-            ${(b.source!=='ostrovok')?`<button onclick="contractLink('${b.booking_num}')" style="background:#eef7ee;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🔗 Данные гостя</button>`:''}
-            ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${b.booking_num}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Отменить</button>` : '—'}
+            ${foreign?`<button onclick="mvdAnketa('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📋 Анкета МВД</button>`:''}
+            ${(b.source!=='ostrovok')?`<button onclick="contractLink('${escAttr(b.booking_num)}')" style="background:#eef7ee;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">🔗 Данные гостя</button>`:''}
+            ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${escAttr(b.booking_num)}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Отменить</button>` : '—'}
           </td>
         </tr>`; }).join('')}
     </table>` : '<div class="empty">Броней пока нет</div>';
@@ -742,14 +826,23 @@ async function contractLink(bookingNum){
 function mvdAnketa(bookingNum){
   var b=(myBookings||[]).find(function(x){return x.booking_num===bookingNum;}); if(!b)return;
   var guests=[]; try{ guests=JSON.parse(b.guest_passports||'[]')||[]; }catch(e){ guests=[]; }
+  // ═ БЕЗОПАСНОСТЬ ═ Всё содержимое анкеты экранируется.
+  // Раньше ФИО, дата рождения и номер паспорта вставлялись СЫРЫМИ.
+  // Эти поля заполняет САМ ГОСТЬ через форму данных для договора,
+  // то есть их задаёт посторонний человек. Имя вида
+  //   <img src=x onerror="...">
+  // выполнялось бы в открытом окне, а окно создано через window.open('')
+  // и потому имеет ТОТ ЖЕ источник, что и кабинет — со всем доступом
+  // к сохранённой сессии владельца объекта.
   var rows=guests.map(function(g,i){
-    return '<tr><td>'+(i+1)+'</td><td>'+(g.name||'')+'</td><td>'+(g.dob||'')+'</td><td>'+(g.passport||'')+'</td><td>'+(b.guest_citizenship||'')+'</td></tr>';
+    return '<tr><td>'+(i+1)+'</td><td>'+esc(g.name||'')+'</td><td>'+esc(g.dob||'')+'</td><td>'+esc(g.passport||'')+'</td><td>'+esc(b.guest_citizenship||'')+'</td></tr>';
   }).join('') || '<tr><td colspan="5" style="color:#888">Данные гостей не заполнены</td></tr>';
   var w=window.open('','_blank');
-  w.document.write('<html><head><meta charset="utf-8"><title>Анкета МВД — '+bookingNum+'</title>'
+  if(!w){ alert('Браузер заблокировал открытие окна. Разрешите всплывающие окна для этого сайта.'); return; }
+  w.document.write('<html><head><meta charset="utf-8"><title>Анкета МВД — '+esc(bookingNum)+'</title>'
     +'<style>body{font-family:Arial,sans-serif;padding:30px;color:#111}h2{margin:0 0 4px}table{width:100%;border-collapse:collapse;margin-top:14px}th,td{border:1px solid #999;padding:8px 10px;font-size:13px;text-align:left}th{background:#f0f0f0}.meta{font-size:13px;color:#444;margin-top:8px;line-height:1.7}@media print{button{display:none}}</style></head><body>'
     +'<h2>Сведения о проживающих иностранных гражданах</h2>'
-    +'<div class="meta"><b>Объект:</b> '+(b.hotel_name||'')+'<br><b>Адрес:</b> '+(b.hotel_address||'—')+'<br><b>Бронь №:</b> '+bookingNum+'<br><b>Заезд:</b> '+fmtDate(b.check_in)+' &nbsp; <b>Выезд:</b> '+fmtDate(b.check_out)+'<br><b>Гражданство:</b> '+(b.guest_citizenship||'')+'</div>'
+    +'<div class="meta"><b>Объект:</b> '+esc(b.hotel_name||'')+'<br><b>Адрес:</b> '+esc(b.hotel_address||'—')+'<br><b>Бронь №:</b> '+esc(bookingNum)+'<br><b>Заезд:</b> '+esc(fmtDate(b.check_in))+' &nbsp; <b>Выезд:</b> '+esc(fmtDate(b.check_out))+'<br><b>Гражданство:</b> '+esc(b.guest_citizenship||'')+'</div>'
     +'<table><tr><th>№</th><th>Имя и фамилия</th><th>Дата рождения</th><th>Паспорт</th><th>Гражданство</th></tr>'+rows+'</table>'
     +'<p style="margin-top:20px"><button onclick="window.print()" style="padding:10px 20px;font-size:14px;cursor:pointer">🖨 Печать / Сохранить PDF</button></p>'
     +'</body></html>');
@@ -763,9 +856,9 @@ function renderProfile() {
   if (!u) { box.innerHTML = '<div style="color:var(--muted);font-size:13px">Сессия истекла — обновите страницу и войдите заново.</div>'; return; }
   box.innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px">
-      <div><b style="color:var(--muted);font-size:11px">Имя</b><br>${u.name||u.first_name||'—'}</div>
-      <div><b style="color:var(--muted);font-size:11px">Email</b><br>${u.email}</div>
-      <div><b style="color:var(--muted);font-size:11px">Телефон</b><br>${u.phone||'—'}</div>
+      <div><b style="color:var(--muted);font-size:11px">Имя</b><br>${esc(u.name||u.first_name||'—')}</div>
+      <div><b style="color:var(--muted);font-size:11px">Email</b><br>${esc(u.email)}</div>
+      <div><b style="color:var(--muted);font-size:11px">Телефон</b><br>${esc(u.phone||'—')}</div>
       <div><b style="color:var(--muted);font-size:11px">Роль</b><br>Партнёр</div>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--faint);font-size:12px;color:var(--muted)">
@@ -1016,7 +1109,7 @@ async function loadCityOptions(selectedId){
     if(!r.ok){ if(selE)selE.innerHTML='<option value="">Ошибка городов: '+(rows&&rows.error||r.status)+'</option>'; console.error('cities:',rows); return; }
     var sel=document.getElementById('h-city');
     if(sel&&Array.isArray(rows)&&rows.length){
-      sel.innerHTML='<option value="">— выберите город —</option>'+rows.map(function(c){return '<option value="'+c.id+'">'+String(c.name_ru||c.name_en||'').replace(/[<>&"]/g,'')+'</option>';}).join('');
+      sel.innerHTML='<option value="">— выберите город —</option>'+rows.map(function(c){return '<option value="'+esc(c.id)+'">'+esc(c.name_ru||c.name_en||'')+'</option>';}).join('');
       if(selectedId!=null)sel.value=String(selectedId);
     } else if(sel){
       sel.innerHTML='<option value="">Справочник городов недоступен — обновите страницу</option>';
@@ -1085,8 +1178,8 @@ async function loadHotelPhotos(hotelId) {
     }
     grid.innerHTML = photos.map((p,i) => `
       <div style="position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1.5px solid var(--faint)">
-        <img src="${p.url||p}" style="width:100%;height:100%;object-fit:cover">
-        <button onclick="deletePhoto('${hotelId}','${p.id||i}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
+        <img src="${safeUrl(p.url||p)}" style="width:100%;height:100%;object-fit:cover">
+        <button onclick="deletePhoto('${escAttr(hotelId)}','${escAttr(p.id||i)}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
         ${i===0?'<div style="position:absolute;bottom:4px;left:4px;background:#c9f135;color:#0d2b15;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">ОБЛОЖКА</div>':''}
       </div>`).join('');
   } catch(e) {
@@ -1155,16 +1248,16 @@ async function loadHotelRooms(hotelId) {
       const amenities = (() => { try { return JSON.parse(r.amenities||'[]'); } catch(e){ return []; } })();
       const amenMap = {wifi:'📶',tv:'📺',ac:'❄️',bath:'🛁',shower:'🚿',balcony:'🌅',fridge:'🧊',kettle:'☕',safe:'🔒',desk:'💼'};
       return `<div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--faint);align-items:flex-start">
-        ${photos[0] ? `<img src="${photos[0]}" style="width:100px;height:75px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">` : `<div style="width:100px;height:75px;background:var(--faint);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px">🏨</div>`}
+        ${photos[0] ? `<img src="${safeUrl(photos[0])}" style="width:100px;height:75px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">` : `<div style="width:100px;height:75px;background:var(--faint);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px">🏨</div>`}
         <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${r.name_ru||'Номер'}</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">👥 до ${r.capacity||2} гостей · 🛏 ${r.beds||1} кров. · 📐 ${r.size_sqm||0} м² · 🏠 ${r.total_rooms||1} номеров</div>
-          ${amenities.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${amenities.map(a=>`<span style="font-size:11px;background:var(--faint);padding:2px 6px;border-radius:4px">${amenMap[a]||''} ${a}</span>`).join('')}</div>` : ''}
+          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${esc(r.name_ru||'Номер')}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">👥 до ${esc(r.capacity||2)} гостей · 🛏 ${esc(r.beds||1)} кров. · 📐 ${esc(r.size_sqm||0)} м² · 🏠 ${esc(r.total_rooms||1)} номеров</div>
+          ${amenities.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${amenities.map(a=>`<span style="font-size:11px;background:var(--faint);padding:2px 6px;border-radius:4px">${amenMap[a]||''} ${esc(a)}</span>`).join('')}</div>` : ''}
         </div>
         <div style="text-align:right;flex-shrink:0">
-          <div style="font-weight:800;font-size:18px;color:var(--green)">${r.base_price||0} BYN</div>
+          <div style="font-weight:800;font-size:18px;color:var(--green)">${esc(r.base_price||0)} BYN</div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:8px">за ночь</div>
-          <button onclick="editRoom('${r.id}')" style="background:var(--green);color:#c9f135;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">✏️ Изменить</button>
+          <button onclick="editRoom('${escAttr(r.id)}')" style="background:var(--green);color:#c9f135;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">✏️ Изменить</button>
         </div>
       </div>`;
     }).join('');
