@@ -363,6 +363,17 @@ tr:hover td{background:var(--surface)}
                 <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Адрес</label>
                 <input id="h-address" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="Адрес">
               </div>
+              <div style="grid-column:1/-1">
+                <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Координаты на карте</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                  <input id="h-coords" style="flex:1;min-width:220px;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit" placeholder="53.135278, 26.019444">
+                  <button type="button" onclick="clearCoords()" style="padding:10px 14px;border:1.5px solid var(--faint);background:#fff;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:var(--muted)">Очистить</button>
+                </div>
+                <div id="h-coords-hint" style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6">
+                  Откройте карту (Яндекс или Google), найдите вход в ваш объект, нажмите правой кнопкой на нужной точке и скопируйте пару чисел. Вставьте её сюда целиком — разберём сами.<br>
+                  <b>Без координат объект встанет в центре города</b>, вместе со всеми остальными — гость не поймёт, где вы находитесь.
+                </div>
+              </div>
               <div style="margin-bottom:14px">
                 <label style="display:block;font-size:12px;font-weight:600;color:var(--green);margin-bottom:5px">Город * <span style="color:#b45309;font-weight:400">— без него объект не появится в поиске</span></label>
                 <select id="h-city" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff"><option value="">— выберите город —</option></select>
@@ -581,7 +592,13 @@ function initApp() {
   document.getElementById('sb-name').textContent = name;
   document.getElementById('sb-ava').textContent = name[0].toUpperCase();
   // iCal URL
-  document.getElementById('ical-url').textContent = `${API}/api/bookings/ical/${u.id}.ics`;
+  // ═ ИСПРАВЛЕНО ═ Здесь стоял u.id — идентификатор ПОЛЬЗОВАТЕЛЯ.
+  // Бэкенд же ищет `WHERE hotel_id = $1`, то есть ждёт идентификатор ОБЪЕКТА.
+  // Они не совпадают никогда, поэтому экспорт молча отдавал ПУСТОЙ календарь:
+  // ни ошибки, ни пустой страницы — внешняя площадка видела «всё свободно»
+  // и спокойно продавала занятые даты. Настоящий id подставляется в
+  // setIcalUrl() после загрузки объекта (до этого он ещё не известен).
+  document.getElementById('ical-url').textContent = 'Загрузка…';
   // Load data
   loadMyBookings();
   renderProfile();
@@ -1039,6 +1056,7 @@ async function loadHotelData() {
     }
 
     myHotelId = hotels[0].id;
+    setIcalUrl();   // теперь id объекта известен — можно построить верную ссылку
 
     // Загружаем полные данные отеля
     const r2 = await fetch(`${API}/api/hotels/${myHotelId}`, {headers});
@@ -1047,6 +1065,18 @@ async function loadHotelData() {
     // Заполняем форму
     document.getElementById('h-name').value = h.name_ru || '';
     document.getElementById('h-address').value = h.address || '';
+    // Координаты показываем одной строкой — в том же виде, в каком их вставляют.
+    var _co = document.getElementById('h-coords');
+    if (_co) {
+      _co.value = (h.lat != null && h.lng != null) ? (h.lat + ', ' + h.lng) : '';
+      _co.dataset.cleared = '';
+      var _hint = document.getElementById('h-coords-hint');
+      if (_hint && (h.lat == null || h.lng == null)) {
+        _hint.style.color = '#92400e';
+      } else if (_hint) {
+        _hint.style.color = '';
+      }
+    }
     document.getElementById('h-phone').value = h.phone || '';
     document.getElementById('h-email').value = h.email || '';
     document.getElementById('h-desc').value = h.description_ru || '';
@@ -1119,6 +1149,58 @@ async function loadCityOptions(selectedId){
     console.error('cities fetch:',e);
   }
 }
+// Ссылка на экспорт занятости. Строится ТОЛЬКО когда известен id объекта:
+// раньше она собиралась сразу при входе из id пользователя и потому была
+// нерабочей всегда. Пока объект не загружен — честно пишем, что идёт загрузка,
+// а не показываем ссылку, которую нельзя использовать.
+function setIcalUrl() {
+  const el = document.getElementById('ical-url');
+  if (!el) return;
+  el.textContent = myHotelId
+    ? `${API}/api/bookings/ical/${myHotelId}.ics`
+    : 'Ссылка появится после загрузки объекта';
+}
+
+// ══════════════════════════════════════════════════════
+// КООРДИНАТЫ ОБЪЕКТА
+// ══════════════════════════════════════════════════════
+// Принимаем то, что человек скопировал из карт, в любом виде:
+//   53.135278, 26.019444      — Google и Яндекс (правая кнопка)
+//   53.135278 26.019444       — через пробел
+//   53,135278, 26,019444      — русская раскладка, запятая как разделитель дробной части
+//   53.135278; 26.019444      — точка с запятой
+// Заставлять человека раскладывать это по двум полям — верный способ
+// получить перепутанные местами широту и долготу.
+function parseCoords(raw) {
+  let s = String(raw == null ? '' : raw).trim();
+  if (!s) return { empty: true };
+  // Запятая как десятичный разделитель: «53,13» → «53.13».
+  // Отличаем от запятой-разделителя пары: она стоит между цифрами
+  // и в строке таких запятых больше одной либо есть точка с запятой.
+  if (/^\s*-?\d+,\d+\s*[;,]\s*-?\d+,\d+\s*$/.test(s)) {
+    s = s.replace(/(\d),(\d)/g, '$1.$2');
+  }
+  const nums = s.match(/-?\d+(?:\.\d+)?/g) || [];
+  if (nums.length < 2) return { error: 'Нужны два числа — широта и долгота' };
+  if (nums.length > 2) return { error: 'Найдено больше двух чисел. Оставьте только пару координат' };
+  const lat = parseFloat(nums[0]), lng = parseFloat(nums[1]);
+  if (!isFinite(lat) || !isFinite(lng)) return { error: 'Не удалось разобрать числа' };
+  // Перестановка — самая частая ошибка. Для Беларуси широта 51–57,
+  // долгота 23–33, диапазоны не пересекаются, поэтому подмену видно сразу
+  // и её можно молча исправить, а не отчитывать человека.
+  if (lat >= 23 && lat <= 33 && lng >= 51 && lng <= 57) {
+    return { lat: lng, lng: lat, swapped: true };
+  }
+  if (lat < 51 || lat > 57) return { error: 'Широта ' + lat + ' вне Беларуси (ожидается 51–57)' };
+  if (lng < 23 || lng > 33) return { error: 'Долгота ' + lng + ' вне Беларуси (ожидается 23–33)' };
+  return { lat, lng };
+}
+
+function clearCoords() {
+  const e = document.getElementById('h-coords');
+  if (e) { e.value = ''; e.dataset.cleared = '1'; }
+}
+
 async function saveHotelInfo() {
   if (!myHotelId) return;
   const token = currentUser?.token;
@@ -1140,6 +1222,26 @@ async function saveHotelInfo() {
     cancel_rules:   (document.getElementById('h-cancel')||{}).value.trim(),
     city_id:        (document.getElementById('h-city')||{}).value||null,
   };
+
+  // Координаты: пустое поле = «не задавать», а не «стереть».
+  // Стирание — отдельная кнопка «Очистить» + сохранение, тогда придёт null.
+  const coordsRaw = (document.getElementById('h-coords')||{}).value || '';
+  const msgC = document.getElementById('hotel-save-msg');
+  if (coordsRaw.trim()) {
+    const c = parseCoords(coordsRaw);
+    if (c.error) {
+      if (msgC) { msgC.textContent = '⚠️ ' + c.error; msgC.style.cssText='display:block;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600'; }
+      return;
+    }
+    body.lat = c.lat; body.lng = c.lng;
+    if (c.swapped) {
+      // Не молча: человек должен знать, что мы поправили его ввод,
+      // иначе он не заметит той же ошибки в следующий раз.
+      document.getElementById('h-coords').value = c.lat + ', ' + c.lng;
+    }
+  } else if (document.getElementById('h-coords') && document.getElementById('h-coords').dataset.cleared === '1') {
+    body.lat = null; body.lng = null;
+  }
   if(!body.city_id){
     var msg0=document.getElementById('hotel-save-msg');
     if(msg0){ msg0.textContent='⚠️ Выберите город — без него объект не появится в поиске'; msg0.style.cssText='display:block;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600'; }
