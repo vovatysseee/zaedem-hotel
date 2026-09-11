@@ -270,8 +270,14 @@ tr:hover td{background:var(--surface)}
         <div class="ical-box">
           <div class="ical-title">📅 Синхронизация календаря</div>
           <div class="ical-desc">Добавьте эту ссылку в Google Calendar, Apple Calendar или любое другое приложение — все брони автоматически появятся в вашем календаре. Обновление каждые 10 минут.</div>
+          <div class="ical-desc" style="color:#8a6d00;background:#fff8e0;border:1px solid #f0dfa0;border-radius:8px;padding:9px 11px;margin-bottom:10px">
+            ⚠️ Ссылка личная. По ней виден календарь занятости вашего объекта — не публикуйте её, вставляйте только в те площадки, где сдаёте.
+          </div>
           <div class="ical-url" id="ical-url">Загрузка...</div>
-          <button class="copy-btn" onclick="copyIcal()">📋 Скопировать ссылку</button>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="copy-btn" onclick="copyIcal()">📋 Скопировать ссылку</button>
+            <button class="copy-btn" onclick="regenerateIcalToken()" style="background:#fff;color:var(--green);border:1px solid var(--green)">🔁 Выпустить новую</button>
+          </div>
         </div>
         <div class="ical-box">
           <div class="ical-title">🔒 Импорт чужих календарей (защита от овербукинга)</div>
@@ -725,7 +731,7 @@ function bellCollect(){
       var when=e.t?new Date(e.t).toLocaleString('ru',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
       return '<div onclick="bellGo(\''+(e.page||'bookings')+'\')" style="padding:11px 14px;border-bottom:1px solid var(--faint);cursor:pointer;display:flex;gap:10px;'+(isNew?'background:rgba(26,92,56,.05)':'')+'">'
         +'<span style="font-size:16px">'+e.ic+'</span>'
-        +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--ink);line-height:1.4">'+String(e.txt).replace(/</g,'&lt;')+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">'+when+'</div></div>'
+        +'<div style="flex:1;min-width:0"><div style="font-size:12.5px;color:var(--ink);line-height:1.4">'+esc(e.txt)+'</div><div style="font-size:11px;color:var(--muted);margin-top:2px">'+when+'</div></div>'
         +(isNew?'<span style="width:7px;height:7px;border-radius:50%;background:#dc2626;flex-shrink:0;margin-top:4px"></span>':'')
         +'</div>';
     }).join('');
@@ -1056,7 +1062,11 @@ async function loadHotelData() {
     }
 
     myHotelId = hotels[0].id;
-    setIcalUrl();   // теперь id объекта известен — можно построить верную ссылку
+    // Токен запрашиваем ЗДЕСЬ: id объекта только что стал известен, а без токена
+    // ссылка нерабочая. Сначала рисуем «получаем», потом перерисовываем с токеном —
+    // чтобы раздел не был пустым, пока идёт запрос.
+    setIcalUrl();
+    loadIcalToken(false).then(function(){ try{ setIcalUrl(); }catch(e){} });
 
     // Загружаем полные данные отеля
     const r2 = await fetch(`${API}/api/hotels/${myHotelId}`, {headers});
@@ -1157,8 +1167,48 @@ function setIcalUrl() {
   const el = document.getElementById('ical-url');
   if (!el) return;
   el.textContent = myHotelId
-    ? `${API}/api/bookings/ical/${myHotelId}.ics`
+    ? (icalToken ? `${API}/api/bookings/ical/${myHotelId}.ics?t=${encodeURIComponent(icalToken)}`
+                 : 'Получаем ссылку…')
     : 'Ссылка появится после загрузки объекта';
+}
+
+// ══════════════════════════════════════════════════════
+// ТОКЕН КАЛЕНДАРЯ
+// ══════════════════════════════════════════════════════
+// Раньше ссылка на календарь была вида /ical/<id объекта>.ics и открывалась
+// кому угодно: идентификаторы перебираются, и посторонний получал календарь
+// загрузки любого объекта платформы. Теперь нужен токен.
+//
+// Токен запрашивается у сервера при открытии раздела. Заводится там же при первом
+// обращении, поэтому ничего настраивать вручную не нужно.
+let icalToken = null;
+
+async function loadIcalToken(force) {
+  if (!myHotelId) return null;
+  if (icalToken && !force) return icalToken;
+  try {
+    const r = await fetch(`${API}/api/hotels/${myHotelId}/ical-token`, {
+      method: force ? 'POST' : 'GET',
+      headers: authHeaders(),
+    });
+    if (!r.ok) throw new Error('нет доступа');
+    const d = await r.json();
+    icalToken = d.ical_token || null;
+  } catch (e) {
+    console.error('ical token:', e.message);
+    icalToken = null;
+  }
+  return icalToken;
+}
+
+// Перевыпуск: старая ссылка перестаёт работать сразу. Нужен, если ссылку
+// разослали лишним людям или площадка, которой её отдали, больше не используется.
+async function regenerateIcalToken() {
+  if (!confirm('Выпустить новую ссылку?\n\nСтарая перестанет работать немедленно. Её придётся заново вставить во все площадки, где она указана.')) return;
+  await loadIcalToken(true);
+  try { setIcalUrl(); } catch (e) {}
+  try { if (typeof renderRoomIcal === 'function') renderRoomIcal(); } catch (e) {}
+  try { if (typeof showToast === 'function') showToast(icalToken ? 'Новая ссылка выпущена' : 'Не удалось выпустить ссылку', !icalToken); } catch (e) {}
 }
 
 // ══════════════════════════════════════════════════════
@@ -1384,7 +1434,11 @@ function openRoomModal(room) {
   document.getElementById('rm-desc').value = room?.description_ru || '';
   // iCal номера
   if(document.getElementById('rm-ical')){ try{ document.getElementById('rm-ical').value=(JSON.parse(room?.ical_import_urls||'[]')||[]).join('\n'); }catch(e){ document.getElementById('rm-ical').value=''; } }
-  if(document.getElementById('rm-ical-url')) document.getElementById('rm-ical-url').textContent = room?.id ? ('Ваша ссылка для других площадок: '+API+'/api/bookings/ical/'+myHotelId+'/room/'+room.id+'.ics') : 'Сохраните номер, чтобы получить ссылку экспорта.';
+  if(document.getElementById('rm-ical-url')) document.getElementById('rm-ical-url').textContent = room?.id
+    ? (icalToken
+        ? ('Ваша ссылка для других площадок: '+API+'/api/bookings/ical/'+myHotelId+'/room/'+room.id+'.ics?t='+encodeURIComponent(icalToken))
+        : 'Получаем ссылку…')
+    : 'Сохраните номер, чтобы получить ссылку экспорта.';
   window._rmCurId = room?.id || '';
 
   // Кровати
