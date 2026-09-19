@@ -841,14 +841,19 @@ function renderBookingsTable(bookings) {
         // не показывались ни при каких данных.
         var own      = (b.source !== 'ostrovok');
         var filled   = !!b.contract_filled_at;
-        var foreign  = filled && b.contract_has_foreign === true;
+        // Иностранцы видны в двух местах: гость указывает гражданство ещё при
+        // бронировании, а потом уточняет в анкете. Берём любое из двух —
+        // бейдж должен загораться сразу, а не только после заполнения анкеты.
+        var citizen  = String(b.guest_citizenship || '').trim();
+        var foreign  = (filled && b.contract_has_foreign === true)
+                    || (!!citizen && citizen !== 'Беларусь' && citizen !== 'BY');
         var nGuests  = parseInt(b.contract_guests_count || 0, 10) || 0;
         return `
         <tr${foreign?' style="background:#fff5f5"':''}>
           <td><b style="color:var(--green)">${esc(b.booking_num)}</b></td>
           <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${
             filled?`<br><span style="display:inline-block;margin-top:3px;background:#e8f5e9;color:#1a5c38;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">✅ данные загружены${nGuests?' · '+nGuests+' чел.':''}</span>`:''
-          }${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 иностранцы — регистрация в МВД</span>`:''}</td>
+          }${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(citizen&&citizen!=='BY'?citizen:'иностранцы')} — регистрация в МВД</span>`:''}</td>
           <td>${esc(b.guest_phone||'—')}</td>
           <td>${esc(b.hotel_name||'—')}</td>
           <td>${fmtDate(b.check_in)}</td>
