@@ -1260,17 +1260,51 @@ function showToast(msg) {
 // ── МОЙ ОТЕЛЬ ──────────────────────────────────────────
 let myHotelId = null;
 
+// Объект не загрузился — говорим об этом на всех страницах разом, а не только
+// на «Моём отеле». Пустой кабинет без объяснения — худший вид поломки:
+// хозяин не знает, к кому идти.
+function noHotelReason(text) {
+  window._noHotel = text;
+  const msg = document.getElementById('hotel-save-msg');
+  if (msg) { msg.textContent = text; msg.style.display = 'block'; }
+  const ic = document.getElementById('ical-url');
+  if (ic) ic.textContent = text;
+  const cs = document.getElementById('cal-room');
+  if (cs) cs.innerHTML = '<option value="">' + esc(text) + '</option>';
+  const cc = document.getElementById('cal-controls');
+  if (cc) cc.style.display = 'none';
+  // Крутилки в «Номерах» и «Фотографиях» иначе крутятся вечно: их снимает
+  // загрузка объекта, а её не было. Вечная загрузка выглядит как поломка.
+  const rl = document.getElementById('rooms-list');
+  if (rl) rl.innerHTML = '<div class="empty">' + esc(text) + '</div>';
+  const pg = document.getElementById('hotel-photos-grid');
+  if (pg) pg.innerHTML = '';
+  console.warn('кабинет: объект не загружен —', text);
+}
+
 async function loadHotelData() {
   try {
     const token = currentUser?.token;
     const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
 
     // Получаем список отелей отельера
+    // ═ ПОЧЕМУ ЗДЕСЬ СТОЛЬКО ПРОВЕРОК ═
+    // Раньше при любой неудаче функция молча выходила, и единственный след был
+    // на странице «Мой отель» — а на остальных страницах просто вечная «Загрузка…».
+    // Хозяин видел пустой кабинет и не понимал, объекта у него нет, доступ пропал
+    // или сервер лежит. Теперь причина называется и видна на всех страницах.
     const r = await fetch(`${API}/api/hotels/owner/my`, {headers});
-    const hotels = await r.json();
+    let hotels = null;
+    try { hotels = await r.json(); } catch (e) { hotels = null; }
+    if (!r.ok || !Array.isArray(hotels)) {
+      const why = (r.status === 401 || r.status === 403)
+        ? 'Сессия истекла или нет доступа — выйдите и войдите заново.'
+        : ((hotels && hotels.error) ? hotels.error : 'Сервер не ответил. Обновите страницу через минуту.');
+      noHotelReason(why);
+      return;
+    }
     if (!hotels.length) {
-      document.getElementById('hotel-save-msg').textContent = 'У вас нет привязанных отелей';
-      document.getElementById('hotel-save-msg').style.display = 'block';
+      noHotelReason('К вашему аккаунту не привязан ни один объект. Напишите на admin@zaedem.by — привяжем.');
       return;
     }
 
@@ -1479,7 +1513,15 @@ function clearCoords() {
 }
 
 async function saveHotelInfo() {
-  if (!myHotelId) return;
+  // Без объекта сохранять некуда. Раньше кнопка просто ничего не делала —
+  // человек заполнял форму, жал «Сохранить» и не понимал, почему тишина.
+  if (!myHotelId) {
+    const m = document.getElementById('hotel-save-msg');
+    const t = window._noHotel || 'Объект не привязан к аккаунту — сохранять пока некуда.';
+    if (m) { m.textContent = t; m.style.display = 'block'; }
+    else alert(t);
+    return;
+  }
   const token = currentUser?.token;
   const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
   const body = {
@@ -1813,6 +1855,7 @@ async function calInit(){
   // отсутствии объекта эта функция перезапускала себя каждые 0,4 секунды
   // до закрытия вкладки. Теперь 25 попыток (~10 секунд) — и честное сообщение.
   if(!myHotelId){
+    if(window._noHotel){ noHotelReason(window._noHotel); return; }   // причина уже известна
     if(_calWaits++ < 25){ setTimeout(calInit,400); return; }
     var s0=document.getElementById('cal-room');
     if(s0) s0.innerHTML='<option value="">Объект ещё не загружен — откройте «Мой отель»</option>';
