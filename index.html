@@ -233,6 +233,13 @@ tr:hover td{background:var(--surface)}
     <div class="content">
 
       <!-- DASHBOARD -->
+      <!-- Временный пароль, выданный администратором. Полоса висит, пока партнёр
+           не сменит пароль сам: письмо с паролем остаётся в почте навсегда,
+           а кабинет — это брони и паспортные данные гостей. -->
+      <div id="pw-warn" style="display:none;background:#fff4e5;border:1.5px solid #f0c98a;border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#7a4b00;line-height:1.6">
+        🔑 <b>Смените пароль.</b> Сейчас у вас пароль, который прислали письмом — он так и останется лежать в вашей почте.
+        <a onclick="showPage('profile')" style="color:#7a4b00;font-weight:700;text-decoration:underline;cursor:pointer">Сменить в профиле →</a>
+      </div>
       <div class="page on" id="page-dashboard">
         <div class="stats">
           <div class="stat">
@@ -620,6 +627,10 @@ function initApp() {
   // и спокойно продавала занятые даты. Настоящий id подставляется в
   // setIcalUrl() после загрузки объекта (до этого он ещё не известен).
   document.getElementById('ical-url').textContent = 'Загрузка…';
+  try {
+    var _pw = document.getElementById('pw-warn');
+    if (_pw) _pw.style.display = (u && u.must_change_password) ? 'block' : 'none';
+  } catch (e) {}
   // Load data
   loadMyBookings();
   renderProfile();
@@ -1152,6 +1163,11 @@ async function changePassword(){
       try { sessionStorage.setItem('hotel_user', JSON.stringify(currentUser)); } catch(e){}
     }
     ['pw-old','pw-new','pw-new2'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
+    // Пароль сменён — напоминание больше не нужно, и в сохранённой сессии тоже.
+    try {
+      if (currentUser) { currentUser.must_change_password = false; sessionStorage.setItem('hotel_user', JSON.stringify(currentUser)); }
+      var _pw = document.getElementById('pw-warn'); if (_pw) _pw.style.display = 'none';
+    } catch (e) {}
     _pwMsg('✅ Пароль изменён. На других устройствах нужно будет войти заново.', true);
     showToast('Пароль изменён');
   } catch(e) {
