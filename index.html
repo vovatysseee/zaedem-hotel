@@ -26,7 +26,14 @@
 <meta name="robots" content="noindex, nofollow, noarchive">
 <!-- Панель не должна попадать в поисковую выдачу. Это не защита (кто знает адрес —
      откроет), но убирает самый лёгкий способ её найти: поиск по типовым словам. -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!-- Установка на телефон как приложение: manifest.webmanifest и две иконки лежат рядом с index.html -->
+<meta name="theme-color" content="#1a5c38">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Заедем Партнёр">
 <title>Заедем.by — Личный кабинет партнёра</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' fill='%23c9f135' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -163,6 +170,155 @@ tr:hover td{background:var(--surface)}
 .rm-btn{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;font-family:inherit}
 .rm-btn-cancel{background:var(--faint);color:var(--ink)}
 .rm-btn-save{background:var(--green);color:#c9f135}
+/* ══════════════════════════════════════════════════════
+   27.09 — КАБИНЕТ НА ТЕЛЕФОНЕ, ФОТО ФАЙЛАМИ, РЕКВИЗИТЫ, ИИ
+   ══════════════════════════════════════════════════════ */
+.bnav,.more-sheet,.save-fab{display:none}
+/* Скрытая всплывашка перехватывала нажатия: невидимая, но лежала поверх кнопок */
+.toast{pointer-events:none}
+/* Готовность объявления */
+.rd-box{padding:14px 16px}
+.rd-top{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.rd-pct{font-family:'Unbounded',sans-serif;font-weight:800;font-size:1.1rem;color:var(--green);min-width:54px}
+.rd-bar{flex:1;height:8px;background:var(--faint);border-radius:6px;overflow:hidden}
+.rd-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green3),var(--lime));border-radius:6px;transition:width .4s}
+.rd-list{display:flex;flex-direction:column;gap:6px}
+.rd-it{display:flex;align-items:center;gap:10px;font-size:13px;padding:9px 11px;border:1px solid var(--faint);border-radius:10px;background:var(--surface);cursor:pointer;text-align:left;width:100%;font-family:inherit;color:var(--ink)}
+.rd-it:hover{border-color:var(--green)}
+.rd-it b{margin-left:auto;color:var(--green);font-size:12px;white-space:nowrap}
+.rd-done{font-size:12.5px;color:var(--green);font-weight:600}
+/* Фото */
+.ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.ph{position:relative;aspect-ratio:4/3;border-radius:10px;overflow:hidden;border:1.5px solid var(--faint);background:var(--surface)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph-cover{position:absolute;top:6px;left:6px;background:var(--lime);color:#0d2b15;font-size:10px;font-weight:800;padding:3px 7px;border-radius:6px;text-transform:uppercase;letter-spacing:.3px}
+.ph-del{position:absolute;top:5px;right:5px;width:30px;height:30px;border:none;border-radius:8px;background:rgba(0,0,0,.6);color:#fff;font-size:14px;cursor:pointer}
+.ph-bar{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:space-between;gap:4px;padding:5px;background:linear-gradient(transparent,rgba(0,0,0,.55))}
+.ph-bar button{width:34px;height:30px;border:none;border-radius:8px;background:rgba(255,255,255,.92);color:var(--ink);font-size:13px;cursor:pointer}
+.ph-bar button:disabled{opacity:.35;cursor:default}
+.ph-empty{grid-column:1/-1;font-size:13px;color:var(--muted);line-height:1.6;padding:14px;border:1.5px dashed var(--faint2);border-radius:12px;text-align:center}
+.ph-add{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.ph-btn{background:var(--green);color:#c9f135;border:none;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.ph-link{background:none;border:none;color:var(--muted);font-size:12.5px;text-decoration:underline;cursor:pointer;font-family:inherit}
+.ph-drop{outline:2px dashed var(--green);outline-offset:4px;border-radius:12px}
+.ph-hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:10px}
+/* Реквизиты */
+.req{margin-top:20px;padding-top:18px;border-top:1px solid var(--faint)}
+.req-h{font-size:14px;font-weight:700;margin-bottom:4px}
+.req-sub{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5}
+.seg3{display:flex;background:var(--surface);border:1.5px solid var(--faint);border-radius:10px;padding:3px;gap:3px;margin-bottom:14px;max-width:460px}
+.seg3 button{flex:1;border:none;background:none;padding:9px 6px;border-radius:8px;font-size:13px;font-weight:600;color:var(--muted);font-family:inherit;cursor:pointer}
+.seg3 button.on{background:#fff;color:var(--green);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.rq-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:640px}
+.rq-f label{display:block;font-size:11.5px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.rq-f input{width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff}
+.rq-f input:focus{outline:none;border-color:var(--green)}
+.rq-card{border:1.5px solid var(--faint);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;margin:4px 0 12px;max-width:640px;background:var(--surface)}
+.rq-card.ok{border-color:rgba(26,92,56,.35);background:var(--green-pale)}
+.rq-card.bad{border-color:#f0b0b0;background:var(--red-pale)}
+.rq-msg{font-size:12px;margin-top:6px;min-height:16px}
+/* ИИ-помощник */
+.ai-box{border:1.5px solid rgba(26,92,56,.2);background:linear-gradient(135deg,#f3faf5,#fbfdf3);border-radius:14px;padding:14px 16px;margin:6px 0 16px}
+.ai-h{font-weight:700;font-size:14px;color:var(--green);margin-bottom:4px}
+.ai-sub{font-size:12px;color:var(--muted);line-height:1.55;margin-bottom:10px}
+.ai-in{position:relative}
+.ai-in textarea{width:100%;padding:10px 46px 10px 12px;border:1.5px solid var(--faint);border-radius:10px;font-size:14px;font-family:inherit;resize:vertical;background:#fff}
+.ai-mic{position:absolute;right:8px;top:8px;width:34px;height:34px;border-radius:50%;border:none;background:var(--green-pale);font-size:16px;cursor:pointer}
+.ai-mic.rec{background:var(--red);color:#fff;animation:aiPulse 1s infinite}
+@keyframes aiPulse{50%{opacity:.6}}
+.ai-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px}
+.ai-go{background:var(--green);color:#c9f135;border:none;padding:11px 18px;border-radius:10px;font-weight:700;font-size:13.5px;cursor:pointer;font-family:inherit}
+.ai-go:disabled{opacity:.55;cursor:default}
+.ai-left{font-size:12px;color:var(--muted)}
+.ai-out{margin-top:12px;background:#fff;border:1px solid var(--faint);border-radius:12px;padding:12px 14px}
+.ai-out h4{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin:8px 0 5px}
+.ai-out h4:first-child{margin-top:0}
+.ai-txt{font-size:13.5px;line-height:1.6;white-space:pre-wrap}
+.ai-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.ai-btns button{padding:9px 14px;border-radius:9px;border:1.5px solid var(--green);background:#fff;color:var(--green);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit}
+.ai-btns button.pri{background:var(--green);color:#c9f135}
+/* Номера */
+.rm-card{display:flex;gap:12px;padding:14px 0;border-bottom:1px solid var(--faint);align-items:flex-start}
+.rm-card:last-child{border-bottom:none}
+.rm-thumb{width:96px;height:72px;border-radius:9px;object-fit:cover;flex-shrink:0;background:var(--faint);display:flex;align-items:center;justify-content:center;font-size:24px}
+.rm-tags{display:flex;gap:4px;flex-wrap:wrap}
+.rm-tags span{font-size:11px;background:var(--faint);padding:2px 7px;border-radius:5px}
+.rm-photo-main{position:absolute;left:3px;bottom:3px;background:var(--lime);color:#0d2b15;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px}
+.rm-photo-star{position:absolute;left:3px;top:3px;background:rgba(255,255,255,.92);border:none;border-radius:4px;width:22px;height:20px;cursor:pointer;font-size:11px}
+.rm-btn-del{background:none;color:var(--red);margin-right:auto}
+
+@media (max-width:860px){
+  body{display:block}
+  .sidebar{display:none}
+  .main{margin-left:0;min-height:100vh}
+  .topbar{padding:0 12px;padding-top:env(safe-area-inset-top);height:auto;min-height:52px}
+  .content{padding:12px 12px calc(96px + env(safe-area-inset-bottom))}
+  .stats{grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .stat{padding:10px 10px 12px}
+  .stat-label{font-size:9px;letter-spacing:.3px;margin-bottom:6px}
+  .stat-val{font-size:1.02rem;margin-bottom:0}
+  .stat-sub{display:none}
+  .section{border-radius:14px;margin-bottom:12px}
+  .sec-head{padding:12px 14px}
+  .sec-head button{padding:8px 12px!important;font-size:12px!important}
+  #page-hotel [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  #page-hotel [style*="padding:1.2rem"],#page-calendar [style*="padding:1.2rem"],#page-profile [style*="padding:1.2rem"]{padding:14px!important}
+  #page-profile [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  .rq-grid{grid-template-columns:1fr}
+  input,select,textarea{font-size:16px!important}
+  .ph-grid{grid-template-columns:repeat(2,1fr);gap:8px}
+  .ph-btn{flex:1;padding:14px}
+  /* нижнее меню */
+  .bnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;background:#fff;border-top:1px solid var(--faint);padding:6px 2px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -4px 18px rgba(0,0,0,.07)}
+  .bnav button{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:600;color:var(--muted);padding:3px 0;position:relative;font-family:inherit}
+  .bnav button .i{font-size:20px;line-height:1;filter:grayscale(1);opacity:.75}
+  .bnav button.on{color:var(--green)}
+  .bnav button.on .i{filter:none;opacity:1}
+  .bnav .b{position:absolute;top:-2px;left:50%;margin-left:5px;background:var(--red);color:#fff;font-size:9.5px;font-weight:800;border-radius:9px;padding:1px 5px;min-width:17px;text-align:center}
+  .more-sheet.open{display:block;position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.4)}
+  .more-sheet .ms{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;padding:8px 12px calc(14px + env(safe-area-inset-bottom))}
+  .more-sheet .ms-grip{width:40px;height:4px;border-radius:3px;background:var(--faint2);margin:6px auto 10px}
+  .more-sheet .ms-user{font-size:12px;color:var(--muted);padding:0 6px 10px;border-bottom:1px solid var(--faint);margin-bottom:6px}
+  .more-sheet button{display:flex;align-items:center;gap:12px;width:100%;padding:14px 8px;border:none;background:none;font-size:15px;font-family:inherit;color:var(--ink);border-radius:10px;text-align:left}
+  .more-sheet button:active{background:var(--surface)}
+  .save-fab{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:55;justify-content:center;align-items:center;gap:6px;background:var(--green);color:#c9f135;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;box-shadow:0 6px 20px rgba(26,92,56,.35)}
+  body.pg-hotel .save-fab{display:flex}
+  body.pg-hotel .content{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  .toast{left:12px;right:12px;bottom:calc(132px + env(safe-area-inset-bottom));text-align:center}
+  #bell-drop{position:fixed!important;left:8px;right:8px;top:calc(56px + env(safe-area-inset-top))!important;width:auto!important;max-height:70vh!important}
+  /* таблицы броней → карточки */
+  table.rt,table.rt tbody,table.rt tr,table.rt td{display:block;width:100%}
+  table.rt tr:first-child{display:none}
+  table.rt tr{border:1px solid var(--faint);border-radius:12px;padding:10px 12px;margin:10px 0;background:#fff}
+  table.rt tr:hover td{background:none}
+  table.rt td{border:none;padding:4px 0;display:flex;gap:12px;justify-content:space-between;align-items:flex-start;text-align:right;font-size:13px}
+  table.rt td::before{content:attr(data-l);color:var(--muted);font-size:12px;text-align:left;flex-shrink:0}
+  table.rt td.act{flex-direction:row!important;flex-wrap:wrap;justify-content:flex-start!important;gap:6px!important;padding-top:10px;text-align:left}
+  table.rt td.act::before{display:none}
+  table.rt td.act button{padding:9px 12px!important;font-size:12.5px!important}
+  #bookings-table,#dash-bookings{padding:0 10px 4px}
+  /* окно номера — лист снизу */
+  .room-modal-overlay{padding:0;align-items:flex-end}
+  .room-modal{max-width:none;max-height:94dvh;border-radius:18px 18px 0 0}
+  .room-modal-head{padding:14px 16px}
+  .room-modal-body{padding:16px}
+  .room-modal-foot{padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+  .rm-btn{padding:13px 16px}
+  .rm-btn-save{flex:1}
+  .login-box{padding:28px 20px;margin:0 14px}
+  #cal-grid{gap:4px!important}
+  /* поле даты имеет собственную минимальную ширину и распирало страницу вбок */
+  #page-calendar [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important}
+  #page-calendar input{min-width:0;max-width:100%}
+  #cal-month-label{min-width:0!important;flex:1}
+  #page-calendar [style*="margin-left:auto;font-size:12px"]{flex-basis:100%;margin-left:0!important}
+  /* до входа нижнего меню и кнопки нет: класс pg-… появляется только в кабинете */
+  body:not([class*="pg-"]) .bnav,body:not([class*="pg-"]) .save-fab{display:none!important}
+  .rm-thumb{width:80px;height:60px}
+}
+html.zb-lock,html.zb-lock body{overflow:hidden}
+.room-modal{overscroll-behavior:contain}
+.rm-photo-del{width:26px!important;height:26px!important;font-size:13px!important}
 </style>
 </head>
 <body>
@@ -174,11 +330,11 @@ tr:hover td{background:var(--surface)}
     <div class="login-sub">Личный кабинет партнёра</div>
     <div class="login-field">
       <label>Email</label>
-      <input type="email" id="loginEmail" placeholder="hotel@example.com">
+      <input type="email" id="loginEmail" placeholder="hotel@example.com" autocomplete="username">
     </div>
     <div class="login-field">
       <label>Пароль</label>
-      <input type="password" id="loginPass" placeholder="••••••••">
+      <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
     </div>
     <button class="login-btn" onclick="doLogin()">Войти</button>
     <div class="login-err" id="loginErr"></div>
@@ -205,7 +361,7 @@ tr:hover td{background:var(--surface)}
       <div class="nav-item" onclick="showPage('calendar',this)">💰 Цены и доступность</div>
       <div class="sb-section">Настройки</div>
       <div class="nav-item" onclick="showPage('ical',this)">📅 Календарь (iCal)</div>
-      <div class="nav-item" onclick="showPage('profile',this)">⚙️ Профиль</div>
+      <div class="nav-item" onclick="showPage('profile',this)">⚙️ Профиль и реквизиты</div>
     </div>
     <div class="sb-bottom">
       <div class="sb-user">
@@ -241,6 +397,11 @@ tr:hover td{background:var(--surface)}
         <a onclick="showPage('profile')" style="color:#7a4b00;font-weight:700;text-decoration:underline;cursor:pointer">Сменить в профиле →</a>
       </div>
       <div class="page on" id="page-dashboard">
+        <!-- Готовность объявления: что ещё заполнить, чтобы объект продавался -->
+        <div class="section" id="rd-section" style="display:none">
+          <div class="sec-head"><span class="sec-title">Готовность объявления</span></div>
+          <div class="rd-box" id="rd-box"></div>
+        </div>
         <div class="stats">
           <div class="stat">
             <div class="stat-label">Броней всего</div>
@@ -451,6 +612,17 @@ tr:hover td{background:var(--surface)}
                 <input id="h-checkout" type="time" value="12:00" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit">
               </div>
             </div>
+            <!-- ИИ-помощник: появляется, только если включён на сервере (PARTNER_AI=1) -->
+            <div class="ai-box" id="ai-box" style="display:none">
+              <div class="ai-h">✨ Помощник напишет описание</div>
+              <div class="ai-sub">Расскажите об объекте своими словами: что есть, что рядом, кому подойдёт. Название, адрес и номера помощник возьмёт из сохранённого объявления. В объявление ничего не попадёт, пока вы сами не нажмёте «Вставить».</div>
+              <div class="ai-in">
+                <textarea id="ai-notes" rows="3" maxlength="1500" placeholder="Например: баня на дровах, озеро в 200 метрах, мангал и беседка, до 8 человек, можно с собакой"></textarea>
+                <button type="button" class="ai-mic" id="ai-mic" onclick="aiMic()" title="Надиктовать голосом">🎤</button>
+              </div>
+              <div class="ai-row"><button type="button" class="ai-go" id="ai-go" onclick="aiGenerate()">Написать описание</button><span class="ai-left" id="ai-left"></span></div>
+              <div class="ai-out" id="ai-out" style="display:none"></div>
+            </div>
             <div style="margin-bottom:16px">
               <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Описание</label>
               <textarea id="h-desc" rows="4" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Описание отеля..."></textarea>
@@ -471,6 +643,7 @@ tr:hover td{background:var(--surface)}
               </select>
               <textarea id="h-cancel" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Например: бесплатная отмена за 3 дня до заезда · позже удерживается стоимость 1 ночи · при неявке — без возврата"></textarea>
               <div style="font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5">Выбранное правило действует автоматически: гость по ссылке из ваучера сможет отменить бронь только пока правило это разрешает. «Своя формулировка» — только текст в ваучере, гость сможет отменять до дня заезда.</div>
+            </div>
             <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
           </div>
         </div>
@@ -480,12 +653,22 @@ tr:hover td{background:var(--surface)}
             <span class="sec-title">Фотографии</span>
           </div>
           <div style="padding:1.2rem">
-            <div id="hotel-photos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
-            <div style="display:flex;gap:8px;margin-bottom:8px">
-              <input id="photo-url-input" type="url" placeholder="Вставьте ссылку на фото (https://...)" style="flex:1;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:13px;font-family:inherit">
-              <button onclick="addPhotoByUrl()" style="background:var(--green);color:#c9f135;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap">📷 Добавить фото</button>
+            <!-- Фото файлами: с телефона — камера или галерея, с компьютера — выбор или перетаскивание -->
+            <div id="ph-zone">
+              <div id="hotel-photos-grid" class="ph-grid"></div>
+              <div class="ph-add">
+                <button type="button" class="ph-btn" id="ph-btn" onclick="photoPick()">📷 Добавить фото</button>
+                <span id="ph-count" style="font-size:12px;color:var(--muted)"></span>
+                <button type="button" class="ph-link" onclick="var b=document.getElementById('ph-url-row');b.style.display=(b.style.display==='none')?'flex':'none'">или по ссылке</button>
+              </div>
+              <input type="file" id="ph-file" accept="image/*" multiple style="display:none" onchange="photoFiles(this.files)">
+              <div id="ph-url-row" style="display:none;gap:8px;margin-top:10px">
+                <input id="photo-url-input" type="url" placeholder="https://… ссылка на фото" style="flex:1;min-width:0;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:13px;font-family:inherit">
+                <button onclick="addPhotoByUrl()" style="background:#fff;color:var(--green);border:1.5px solid var(--green);padding:10px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;white-space:nowrap;font-family:inherit">Добавить</button>
+              </div>
+              <div id="upload-progress" style="margin-top:8px;font-size:13px;color:var(--muted)"></div>
+              <div class="ph-hint">С телефона можно снять прямо сейчас или выбрать из галереи — сразу несколько. Снимки уменьшаем для быстрой загрузки, координаты съёмки из них убираем. Первое фото — обложка в поиске: ◀ ▶ меняют порядок, ★ делает обложкой. Лучше 5–10 фото: фасад, комнаты, кухня, санузел, вид вокруг. Фото сохраняются сразу — нажимать «Сохранить» для них не нужно.</div>
             </div>
-            <div id="upload-progress" style="margin-top:6px;font-size:13px;color:var(--muted)"></div>
           </div>
         </div>
 
@@ -516,10 +699,34 @@ tr:hover td{background:var(--surface)}
 
 <div class="toast" id="toast"></div>
 
+<!-- ═ ТЕЛЕФОН: нижнее меню, «Ещё», кнопка «Сохранить» на странице объекта ═ -->
+<nav class="bnav" id="bnav">
+  <button type="button" data-p="dashboard" onclick="showPage('dashboard')"><span class="i">📊</span>Главная</button>
+  <button type="button" data-p="bookings" onclick="showPage('bookings')"><span class="i">📋</span>Брони<span class="b" id="bn-new" style="display:none"></span></button>
+  <button type="button" data-p="calendar" onclick="showPage('calendar')"><span class="i">💰</span>Цены</button>
+  <button type="button" data-p="hotel" onclick="showPage('hotel')"><span class="i">🏡</span>Объект</button>
+  <button type="button" data-p="more" onclick="moreOpen()"><span class="i">☰</span>Ещё</button>
+</nav>
+<div class="more-sheet" id="more-sheet" onclick="if(event.target===this)moreClose()">
+  <div class="ms">
+    <div class="ms-grip"></div>
+    <div class="ms-user" id="ms-user"></div>
+    <button type="button" onclick="moreClose();showPage('profile')">⚙️ Профиль и реквизиты</button>
+    <button type="button" onclick="moreClose();showPage('ical')">📅 Синхронизация календарей (iCal)</button>
+    <button type="button" onclick="moreClose();doLogout()" style="color:var(--red)">🚪 Выйти</button>
+  </div>
+</div>
+<button type="button" class="save-fab" id="save-fab" onclick="saveHotelInfo()">💾 Сохранить изменения</button>
+
 <script>
 const API = 'https://api.zaedem.by';
 let currentUser = null;
 let myBookings = [];
+// 27.09: данные для «Готовности объявления», фото, реквизиты, ИИ
+var _rd = { hotel: null, photos: null, rooms: null, req: undefined };
+var _photos = [], _photosApi = true;
+var _rq = { type: 'org', lookup: null, prefill: null };
+var _ai = { enabled: false, left: null, last: null };
 
 // ── Заголовки авторизации ─────────────────────────────
 // Функция вызывалась в loadIcalToken, но нигде не была объявлена: запрос падал
@@ -635,6 +842,7 @@ function initApp() {
   loadMyBookings();
   renderProfile();
   loadHotelData(); // подгружаем объект сразу → myHotelId доступен для календаря без захода в «Мой отель»
+  loadRequisites(false);
   // Восстанавливаем открытую страницу (F5 / возврат не сбрасывают)
   var savedPage = (location.hash || '').replace('#','') || sessionStorage.getItem('cab_page') || 'dashboard';
   showPage(savedPage);
@@ -695,13 +903,22 @@ function showPage(name, el) {
   pg.classList.add('on');
   if (el) el.classList.add('active');
   else document.querySelectorAll('.nav-item').forEach(function(n){ var oc=n.getAttribute('onclick')||''; if(oc.indexOf("'"+name+"'")>=0)n.classList.add('active'); });
-  const titles = {dashboard:'Дашборд',bookings:'Мои брони',hotel:'Мой отель',calendar:'Цены и доступность',ical:'Календарь (iCal)',profile:'Профиль'};
+  const titles = {dashboard:'Дашборд',bookings:'Мои брони',hotel:'Мой отель',calendar:'Цены и доступность',ical:'Календарь (iCal)',profile:'Профиль и реквизиты'};
   document.getElementById('pageTitle').textContent = titles[name] || name;
   try { sessionStorage.setItem('cab_page', name); if(location.hash.replace('#','')!==name) history.replaceState(null,'','#'+name); } catch(e){}
   if (name === 'bookings') renderBookingsTable(myBookings);
   if (name === 'hotel') { try{ loadCityOptions(null); }catch(e){} loadHotelData(); }
   if (name === 'calendar') calInit();
   if (name === 'profile') renderProfile(); // раньше вкладка «Профиль» оставалась пустой — рендер не вызывался
+  // Телефон: подсветка нижнего меню, класс страницы (кнопка «Сохранить» у объекта), прокрутка наверх
+  try {
+    document.body.className = (document.body.className.replace(/\bpg-\S+/g, '') + ' pg-' + name).trim();
+    document.querySelectorAll('.bnav button[data-p]').forEach(function(b){
+      var p = b.getAttribute('data-p');
+      b.classList.toggle('on', p === name || (p === 'more' && (name === 'ical' || name === 'profile')));
+    });
+    if (window.innerWidth <= 860) window.scrollTo(0, 0);
+  } catch(e) {}
 }
 
 // ── LOAD BOOKINGS ──
@@ -791,6 +1008,8 @@ function updateStats() {
   const newCount = myBookings.filter(b => b.status === 'confirmed').length;
   document.getElementById('s-new').textContent = newCount;
   document.getElementById('nb-new').textContent = newCount;
+  var _bn = document.getElementById('bn-new');
+  if (_bn) { _bn.textContent = newCount > 99 ? '99+' : newCount; _bn.style.display = newCount ? '' : 'none'; }
   // Выручка в рублях, а не в долларах: прямые объекты считаются в BYN, гость платит
   // в BYN. Знак $ остался с первых макетов и вводил хозяев в заблуждение.
   // Отменённые брони в выручку не берём — они не выручка.
@@ -823,24 +1042,24 @@ function safeUrl(u){
 function renderDashboard() {
   const last5 = myBookings.slice(0, 5);
   document.getElementById('dash-bookings').innerHTML = last5.length ? `
-    <table>
+    <table class="rt">
       <tr><th>Бронь</th><th>Гость</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Сумма</th><th>Статус</th></tr>
       ${last5.map(b => `
         <tr>
-          <td><b>${esc(b.booking_num)}</b></td>
-          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></td>
-          <td>${esc(b.hotel_name||'—')}</td>
-          <td>${fmtDate(b.check_in)}</td>
-          <td>${fmtDate(b.check_out)}</td>
-          <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${esc(b.currency||'BYN')}</b></td>
-          <td>${statusBadge(b.status)}</td>
+          <td data-l="Бронь"><b>${esc(b.booking_num)}</b></td>
+          <td data-l="Гость"><div>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span></div></td>
+          <td data-l="Объект">${esc(b.hotel_name||'—')}</td>
+          <td data-l="Заезд">${fmtDate(b.check_in)}</td>
+          <td data-l="Выезд">${fmtDate(b.check_out)}</td>
+          <td data-l="Сумма"><b>${parseFloat(b.total_price||0).toFixed(0)} ${esc(b.currency||'BYN')}</b></td>
+          <td data-l="Статус">${statusBadge(b.status)}</td>
         </tr>`).join('')}
     </table>` : '<div class="empty">Броней пока нет</div>';
 }
 
 function renderBookingsTable(bookings) {
   document.getElementById('bookings-table').innerHTML = bookings.length ? `
-    <table>
+    <table class="rt">
       <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr>
       ${bookings.map(b => {
         // ── Что мы знаем о анкете, НЕ имея на руках паспортов ──
@@ -861,18 +1080,18 @@ function renderBookingsTable(bookings) {
         var nGuests  = parseInt(b.contract_guests_count || 0, 10) || 0;
         return `
         <tr${foreign?' style="background:#fff5f5"':''}>
-          <td><b style="color:var(--green)">${esc(b.booking_num)}</b></td>
-          <td>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${
+          <td data-l="Бронь"><b style="color:var(--green)">${esc(b.booking_num)}</b></td>
+          <td data-l="Гость"><div>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${
             filled?`<br><span style="display:inline-block;margin-top:3px;background:#e8f5e9;color:#1a5c38;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">✅ данные загружены${nGuests?' · '+nGuests+' чел.':''}</span>`:''
-          }${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(citizen&&citizen!=='BY'?citizen:'иностранцы')} — регистрация в МВД</span>`:''}</td>
-          <td>${esc(b.guest_phone||'—')}</td>
-          <td>${esc(b.hotel_name||'—')}</td>
-          <td>${fmtDate(b.check_in)}</td>
-          <td>${fmtDate(b.check_out)}</td>
-          <td>${esc(b.nights||1)}</td>
-          <td><b>${parseFloat(b.total_price||0).toFixed(0)} ${esc(b.currency||'BYN')}</b></td>
-          <td>${statusBadge(b.status)}</td>
-          <td style="display:flex;flex-direction:column;gap:4px">
+          }${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(citizen&&citizen!=='BY'?citizen:'иностранцы')} — регистрация в МВД</span>`:''}</div></td>
+          <td data-l="Телефон">${b.guest_phone ? `<a href="tel:${esc(String(b.guest_phone).replace(/[^\d+]/g,''))}" style="color:var(--green);font-weight:600;text-decoration:none">${esc(b.guest_phone)}</a>` : '—'}</td>
+          <td data-l="Объект">${esc(b.hotel_name||'—')}</td>
+          <td data-l="Заезд">${fmtDate(b.check_in)}</td>
+          <td data-l="Выезд">${fmtDate(b.check_out)}</td>
+          <td data-l="Ночей">${esc(b.nights||1)}</td>
+          <td data-l="Сумма"><b>${parseFloat(b.total_price||0).toFixed(0)} ${esc(b.currency||'BYN')}</b></td>
+          <td data-l="Статус">${statusBadge(b.status)}</td>
+          <td class="act" data-l="" style="display:flex;flex-direction:column;gap:4px">
             ${(own && !filled)?`<button onclick="requestGuestData('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✉️ Запросить данные</button>`:''}
             ${(own && !filled)?`<button onclick="contractLink('${escAttr(b.booking_num)}')" style="background:#fff;color:var(--muted);border:1px solid var(--faint);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">🔗 Ссылка вручную</button>`:''}
             ${(own && filled)?`<button onclick="guestSheet('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📄 Лист сведений</button>`:''}
@@ -1103,8 +1322,9 @@ function renderProfile() {
       <div><b style="color:var(--muted);font-size:11px">Роль</b><br>Партнёр</div>
     </div>
     <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--faint);font-size:12px;color:var(--muted)">
-      Для изменения данных напишите на <a href="mailto:admin@zaedem.by" style="color:var(--green)">admin@zaedem.by</a>
+      Для изменения имени и телефона напишите на <a href="mailto:booking@zaedem.by" style="color:var(--green)">booking@zaedem.by</a>
     </div>
+    ${reqFormHTML()}
 
     <!-- ── Смена пароля ─────────────────────────────────
          Раньше пароль менялся только через админа. Теперь партнёр меняет его сам. -->
@@ -1124,6 +1344,9 @@ function renderProfile() {
       </div>
     </div>
   `;
+  // Реквизиты: сначала показываем то, что уже знаем, затем обновляем с сервера
+  rqFill();
+  loadRequisites(true);
 }
 
 // ── Смена пароля партнёром ──────────────────────────
@@ -1325,7 +1548,7 @@ async function loadHotelData() {
       return;
     }
     if (!hotels.length) {
-      noHotelReason('К вашему аккаунту не привязан ни один объект. Напишите на admin@zaedem.by — привяжем.');
+      noHotelReason('К вашему аккаунту не привязан ни один объект. Напишите на booking@zaedem.by — привяжем.');
       return;
     }
 
@@ -1385,6 +1608,8 @@ async function loadHotelData() {
     loadCityOptions(h.city_id!=null?h.city_id:null);
     if(document.getElementById('ical-import')){ try{ document.getElementById('ical-import').value=(JSON.parse(h.ical_import_urls||'[]')||[]).join('\n'); }catch(e){} }
     if (h.name_ru) document.getElementById('sb-hotel-name').textContent = h.name_ru;
+    _rd.hotel = h; readyRender();
+    aiStatus();
 
     // Загружаем фото и номера
     loadHotelPhotos(myHotelId);
@@ -1571,6 +1796,7 @@ async function saveHotelInfo() {
     const c = parseCoords(coordsRaw);
     if (c.error) {
       if (msgC) { msgC.textContent = '⚠️ ' + c.error; msgC.style.cssText='display:block;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600'; }
+      showToast('⚠️ Координаты: ' + c.error);
       return;
     }
     body.lat = c.lat; body.lng = c.lng;
@@ -1585,6 +1811,7 @@ async function saveHotelInfo() {
   if(!body.city_id){
     var msg0=document.getElementById('hotel-save-msg');
     if(msg0){ msg0.textContent='⚠️ Выберите город — без него объект не появится в поиске'; msg0.style.cssText='display:block;color:#92400e;background:#fef3c7;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600'; }
+    showToast('⚠️ Выберите город');
     return;
   }
   try {
@@ -1596,116 +1823,114 @@ async function saveHotelInfo() {
       msg.style.cssText = 'display:block;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
       // Обновляем название в сайдбаре
       if (d.name_ru) document.getElementById('sb-hotel-name').textContent = d.name_ru;
+      showToast('✅ Сохранено');
+      try { _rd.hotel = Object.assign({}, _rd.hotel || {}, body, d || {}); readyRender(); } catch(e) {}
     } else {
       msg.textContent = '❌ ' + (d.error || 'Ошибка сохранения');
       msg.style.cssText = 'display:block;color:#c00;background:#fff0f0;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
       console.error('saveHotelInfo error:', d);
+      showToast('❌ ' + (d.error || 'Ошибка сохранения'));
     }
     setTimeout(() => msg.style.display = 'none', 3000);
   } catch(e) {
     console.error('saveHotelInfo error:', e.message);
+    showToast('❌ Нет связи с сервером — изменения не сохранены');
   }
 }
 
+// ── ФОТО ОБЪЕКТА ──
+// Список берём из /api/partner/…/photos: там у каждого фото есть id и порядок.
+// Раньше список брался из публичной карточки объекта, где id фото нет, —
+// поэтому «✕» отправлял на сервер номер по порядку и ничего не удалял.
 async function loadHotelPhotos(hotelId) {
+  const grid = document.getElementById('hotel-photos-grid');
   try {
-    const token = currentUser?.token;
-    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers:{'Authorization':'Bearer '+token}});
-    const data = await r.json();
-    const photos = data.photos || [];
-    const grid = document.getElementById('hotel-photos-grid');
-    if (!photos.length) {
-      grid.innerHTML = '<div style="color:var(--muted);font-size:13px">Фото не добавлены</div>';
-      return;
-    }
-    grid.innerHTML = photos.map((p,i) => `
-      <div style="position:relative;aspect-ratio:4/3;border-radius:8px;overflow:hidden;border:1.5px solid var(--faint)">
-        <img src="${safeUrl(p.url||p)}" style="width:100%;height:100%;object-fit:cover">
-        <button onclick="deletePhoto('${escAttr(hotelId)}','${escAttr(p.id||i)}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:4px;width:22px;height:22px;cursor:pointer;font-size:12px">✕</button>
-        ${i===0?'<div style="position:absolute;bottom:4px;left:4px;background:#c9f135;color:#0d2b15;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px">ОБЛОЖКА</div>':''}
-      </div>`).join('');
+    const r = await fetch(`${API}/api/partner/hotels/${encodeURIComponent(hotelId)}/photos`, {headers: authHeaders()});
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 404 && /^Route /.test(d.error || '')) return loadHotelPhotosOld(hotelId);
+    if (!r.ok) throw new Error(d.error || ('ошибка ' + r.status));
+    _photosApi = true;
+    _photos = d.photos || [];
+    renderHotelPhotos();
   } catch(e) {
     console.error('loadHotelPhotos error:', e.message);
+    if (grid) grid.innerHTML = '<div class="ph-empty">Не удалось загрузить фото. Обновите страницу.</div>';
   }
+}
+
+// Запасной путь: сервер ещё без новых ручек. Показываем фото как раньше,
+// загрузка файлов и порядок недоступны — фото по ссылке работает.
+async function loadHotelPhotosOld(hotelId) {
+  _photosApi = false;
+  try {
+    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers: authHeaders()});
+    const data = await r.json();
+    _photos = (data.photos || []).map(p => ({ id: null, url: p.url || p, is_cover: !!p.is_cover }))
+      .sort((a, b) => (b.is_cover ? 1 : 0) - (a.is_cover ? 1 : 0));
+    renderHotelPhotos();
+  } catch(e) { console.error('loadHotelPhotosOld:', e.message); }
 }
 
 async function addPhotoByUrl() {
   if (!myHotelId) return;
   const input = document.getElementById('photo-url-input');
   const url = input.value.trim();
-  if (!url || !url.startsWith('http')) {
-    alert('Введите корректную ссылку на фото');
-    return;
-  }
-  const token = currentUser?.token;
+  if (!/^https:\/\//i.test(url)) { alert('Ссылка на фото должна начинаться с https://'); return; }
+  if (_photos.length >= 30) { alert('Уже 30 фото — это максимум.'); return; }
   const progress = document.getElementById('upload-progress');
-  progress.textContent = 'Добавляем фото...';
+  progress.textContent = 'Добавляем фото…';
   try {
     const r = await fetch(`${API}/api/hotels/${myHotelId}/photos`, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json', 'Authorization': 'Bearer ' + token},
-      body: JSON.stringify({url, is_cover: false})
+      method: 'POST', headers: authHeaders(true), body: JSON.stringify({url, is_cover: false})
     });
-    const d = await r.json();
-    if (r.ok) {
-      progress.textContent = '✅ Фото добавлено!';
-      input.value = '';
-      loadHotelPhotos(myHotelId);
-    } else {
-      progress.textContent = '❌ ' + (d.error || 'Ошибка');
-    }
+    const d = await r.json().catch(() => ({}));
+    if (r.ok) { progress.textContent = '✅ Фото добавлено'; input.value = ''; loadHotelPhotos(myHotelId); }
+    else progress.textContent = '❌ ' + (d.error || 'Ошибка');
   } catch(e) {
     progress.textContent = '❌ Ошибка: ' + e.message;
   }
-  setTimeout(() => { progress.textContent = ''; }, 3000);
+  setTimeout(() => { progress.textContent = ''; }, 4000);
 }
 
-async function deletePhoto(hotelId, photoId) {
-  if (!confirm('Удалить фото?')) return;
-  const token = currentUser?.token;
-  try {
-    await fetch(`${API}/api/hotels/${hotelId}/photos/${photoId}`, {
-      method: 'DELETE',
-      headers: {'Authorization': 'Bearer ' + token}
-    });
-    loadHotelPhotos(hotelId);
-  } catch(e) {
-    console.error('deletePhoto error:', e.message);
-  }
-}
-
+// Номера целиком — с фото, удобствами и описанием. Публичная карточка объекта
+// отдаёт номера без них, поэтому фото и удобства в списке раньше не появлялись никогда.
 async function loadHotelRooms(hotelId) {
+  const el = document.getElementById('rooms-list');
+  let rooms = null;
   try {
-    const token = currentUser?.token;
-    const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers:{'Authorization':'Bearer '+token}});
-    const data = await r.json();
-    const rooms = data.room_types || [];
-    const el = document.getElementById('rooms-list');
-    if (!rooms.length) {
-      el.innerHTML = '<div style="color:var(--muted);font-size:13px">Номера не добавлены. Нажмите "+ Добавить номер"</div>';
-      return;
-    }
-    el.innerHTML = rooms.map(r => {
-      const photos = (() => { try { return JSON.parse(r.photos||'[]'); } catch(e){ return []; } })();
-      const amenities = (() => { try { return JSON.parse(r.amenities||'[]'); } catch(e){ return []; } })();
-      const amenMap = {wifi:'📶',tv:'📺',ac:'❄️',bath:'🛁',shower:'🚿',balcony:'🌅',fridge:'🧊',kettle:'☕',safe:'🔒',desk:'💼'};
-      return `<div style="display:flex;gap:16px;padding:16px 0;border-bottom:1px solid var(--faint);align-items:flex-start">
-        ${photos[0] ? `<img src="${safeUrl(photos[0])}" style="width:100px;height:75px;object-fit:cover;border-radius:8px;flex-shrink:0" onerror="this.style.display='none'">` : `<div style="width:100px;height:75px;background:var(--faint);border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:24px">🏨</div>`}
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:15px;margin-bottom:4px">${esc(r.name_ru||'Номер')}</div>
-          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">👥 до ${esc(r.capacity||2)} гостей · 🛏 ${esc(r.beds||1)} кров. · 📐 ${esc(r.size_sqm||0)} м² · 🏠 ${esc(r.total_rooms||1)} номеров</div>
-          ${amenities.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap">${amenities.map(a=>`<span style="font-size:11px;background:var(--faint);padding:2px 6px;border-radius:4px">${amenMap[a]||''} ${esc(a)}</span>`).join('')}</div>` : ''}
-        </div>
-        <div style="text-align:right;flex-shrink:0">
-          <div style="font-weight:800;font-size:18px;color:var(--green)">${esc(r.base_price||0)} BYN</div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:8px">за ночь</div>
-          <button onclick="editRoom('${escAttr(r.id)}')" style="background:var(--green);color:#c9f135;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">✏️ Изменить</button>
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    console.error('loadHotelRooms error:', e.message);
+    const r = await fetch(`${API}/api/partner/hotels/${encodeURIComponent(hotelId)}/rooms`, {headers: authHeaders()});
+    if (r.ok) { const d = await r.json(); rooms = d.rooms || []; }
+  } catch(e) {}
+  if (rooms === null) {
+    try {
+      const r = await fetch(`${API}/api/hotels/${hotelId}`, {headers: authHeaders()});
+      const data = await r.json();
+      rooms = data.room_types || [];
+    } catch(e) { console.error('loadHotelRooms error:', e.message); return; }
   }
+  _rd.rooms = rooms; readyRender();
+  if (!rooms.length) {
+    el.innerHTML = '<div style="color:var(--muted);font-size:13px;line-height:1.6">Номеров пока нет — нажмите «+ Добавить номер». Дом или квартиру целиком заводите одним номером, например «Дом целиком».</div>';
+    return;
+  }
+  const AM = {wifi:'📶 Wi-Fi',tv:'📺 ТВ',ac:'❄️ Кондиционер',bath:'🛁 Ванна',shower:'🚿 Душ',balcony:'🌅 Балкон',fridge:'🧊 Холодильник',kettle:'☕ Чайник',safe:'🔒 Сейф',desk:'💼 Стол'};
+  const arr = v => { if (Array.isArray(v)) return v; try { return JSON.parse(v || '[]') || []; } catch(e) { return []; } };
+  el.innerHTML = rooms.map(r => {
+    const photos = arr(r.photos), am = arr(r.amenities);
+    return `<div class="rm-card">
+      ${photos[0] ? `<img class="rm-thumb" src="${safeUrl(photos[0])}" alt="" onerror="this.style.visibility='hidden'">` : `<div class="rm-thumb">🛏</div>`}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:15px;margin-bottom:3px">${esc(r.name_ru||'Номер')}</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:6px;line-height:1.5">👥 до ${esc(r.capacity||2)} гостей · 🛏 ${esc(r.beds||1)} кров.${r.size_sqm && parseFloat(r.size_sqm) ? ' · ' + esc(r.size_sqm) + ' м²' : ''}${(parseInt(r.total_rooms)||1) > 1 ? ' · таких ' + esc(r.total_rooms) : ''}${photos.length ? ' · 📷 ' + photos.length : ''}</div>
+        ${am.length ? `<div class="rm-tags">${am.map(a => `<span>${esc(AM[a]||a)}</span>`).join('')}</div>` : ''}
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-weight:800;font-size:17px;color:var(--green);white-space:nowrap">${esc(r.base_price||0)} BYN</div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">за ночь</div>
+        <button onclick="editRoom('${escAttr(r.id)}')" style="background:var(--green);color:#c9f135;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;font-family:inherit">✏️ Изменить</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── МОДАЛЬНОЕ ОКНО НОМЕРА ──────────────────────────────
@@ -1736,18 +1961,26 @@ function openRoomModal(room) {
     el.classList.toggle('on', String(el.dataset.val) === String(room?.beds || 1));
   });
 
-  // Удобства
-  const amenities = room?.amenities || [];
+  // Удобства: из новой ручки приходят массивом, из старой — строкой JSON
+  let amenities = room?.amenities || [];
+  if (typeof amenities === 'string') { try { amenities = JSON.parse(amenities) || []; } catch(e) { amenities = []; } }
   document.querySelectorAll('.rm-amen').forEach(el => {
     el.classList.toggle('on', amenities.includes(el.dataset.val));
   });
 
   // Фото
-  rmPhotos = room?.photos || [];
+  let ph = room?.photos || [];
+  if (typeof ph === 'string') { try { ph = JSON.parse(ph) || []; } catch(e) { ph = []; } }
+  rmPhotos = Array.isArray(ph) ? ph.slice() : [];
   renderRoomPhotos();
+  const _del = document.getElementById('rm-del'); if (_del) _del.style.display = room?.id ? '' : 'none';
+  const _pm = document.getElementById('rm-photo-msg'); if (_pm) _pm.textContent = '';
+  const _ur = document.getElementById('rm-url-row'); if (_ur) _ur.style.display = 'none';
 
   modal.classList.add('open');
-  document.getElementById('rm-name').focus();
+  document.documentElement.classList.add('zb-lock');
+  // На телефоне не открываем клавиатуру сразу — она закрывает пол-окна
+  if (window.innerWidth > 860) document.getElementById('rm-name').focus();
 }
 
 async function checkRoomIcal(){
@@ -1768,6 +2001,7 @@ async function checkRoomIcal(){
 }
 function closeRoomModal() {
   document.getElementById('room-modal-overlay').classList.remove('open');
+  document.documentElement.classList.remove('zb-lock');
   rmPhotos = [];
 }
 
@@ -1780,9 +2014,41 @@ function toggleAmen(el) {
   el.classList.toggle('on');
 }
 
+// ── ФОТО НОМЕРА ──
+// Файл уменьшается в телефоне, загружается на сервер, а к номеру ссылка
+// привязывается при нажатии «Сохранить» (как и остальные поля окна).
+function rmPhotoPick() {
+  if (rmPhotos.length >= 15) { alert('У номера уже 15 фото — это максимум.'); return; }
+  const i = document.getElementById('rm-file'); if (i) { i.value = ''; i.click(); }
+}
+async function rmPhotoFiles(files) {
+  files = [].slice.call(files || []);
+  if (!files.length) return;
+  if (!myHotelId) { alert('Объект ещё не загрузился — подождите пару секунд'); return; }
+  const msg = document.getElementById('rm-photo-msg');
+  const free = 15 - rmPhotos.length;
+  if (files.length > free) files = files.slice(0, free);
+  const errs = [];
+  for (let i = 0; i < files.length; i++) {
+    msg.textContent = 'Загружаем ' + (i + 1) + ' из ' + files.length + '…';
+    try {
+      const blob = await shrinkImage(files[i]);
+      const r = await fetch(`${API}/api/partner/hotels/${encodeURIComponent(myHotelId)}/media`, {
+        method: 'POST', headers: Object.assign(authHeaders(), {'Content-Type': 'image/jpeg'}), body: blob
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || ('ошибка ' + r.status));
+      rmPhotos.push(d.url); renderRoomPhotos();
+    } catch(e) { errs.push((files[i].name || 'фото') + ': ' + e.message); }
+  }
+  msg.textContent = errs.length ? ('Не загрузилось: ' + errs.length) : 'Готово — нажмите «Сохранить»';
+  if (errs.length) alert('Не все фото загрузились:\n\n' + errs.join('\n'));
+}
+
 function addRoomPhoto() {
   const url = document.getElementById('rm-photo-url').value.trim();
-  if (!url || !url.startsWith('http')) { alert('Введите корректную ссылку'); return; }
+  if (!/^https:\/\//i.test(url)) { alert('Ссылка на фото должна начинаться с https://'); return; }
+  if (rmPhotos.length >= 15) { alert('У номера уже 15 фото — это максимум.'); return; }
   rmPhotos.push(url);
   renderRoomPhotos();
   document.getElementById('rm-photo-url').value = '';
@@ -1792,14 +2058,22 @@ function removeRoomPhoto(idx) {
   rmPhotos.splice(idx, 1);
   renderRoomPhotos();
 }
+function rmPhotoMain(idx) {
+  const x = rmPhotos.splice(idx, 1)[0];
+  rmPhotos.unshift(x);
+  renderRoomPhotos();
+}
 
 function renderRoomPhotos() {
   const grid = document.getElementById('rm-photos');
-  if (!rmPhotos.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:12px">Фото не добавлены</div>'; return; }
+  if (!grid) return;
+  if (!rmPhotos.length) { grid.innerHTML = '<div style="color:var(--muted);font-size:12px;grid-column:1/-1">Фото не добавлены. Первое фото станет главным.</div>'; return; }
+  // safeUrl: ссылку вписывает человек — без проверки в src могла попасть javascript:
   grid.innerHTML = rmPhotos.map((url, i) => `
     <div class="rm-photo-item">
-      <img src="${url}" onerror="this.src=''" alt="">
-      <button class="rm-photo-del" onclick="removeRoomPhoto(${i})">✕</button>
+      <img src="${safeUrl(url)}" onerror="this.style.opacity=.15" alt="">
+      ${i === 0 ? '<span class="rm-photo-main">Главное</span>' : `<button type="button" class="rm-photo-star" title="Сделать главным" onclick="rmPhotoMain(${i})">★</button>`}
+      <button type="button" class="rm-photo-del" onclick="removeRoomPhoto(${i})">✕</button>
     </div>`).join('');
 }
 
@@ -1812,7 +2086,10 @@ async function saveRoomModal() {
   const beds = parseInt(document.querySelector('.rm-bed-opt.on')?.dataset.val || '1');
   const amenities = [...document.querySelectorAll('.rm-amen.on')].map(el => el.dataset.val);
   const roomId = document.getElementById('rm-id').value;
+  const icalUrls = ((document.getElementById('rm-ical')||{}).value||'').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
+  const floorV = (document.getElementById('rm-floor')||{}).value || '';
 
+  // Основные поля — прежней ручкой hotels.js
   const data = {
     name_ru:        name,
     name_en:        name,
@@ -1822,39 +2099,80 @@ async function saveRoomModal() {
     total_rooms:    parseInt(document.getElementById('rm-total').value) || 1,
     size_sqm:       parseFloat(document.getElementById('rm-size').value) || 0,
     description_ru: document.getElementById('rm-desc').value.trim(),
-    ical_import_urls: JSON.stringify(((document.getElementById('rm-ical')||{}).value||'').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean)),
-    amenities:      JSON.stringify(amenities),
-    photos:         JSON.stringify(rmPhotos),
+    ical_import_urls: JSON.stringify(icalUrls),
   };
 
-  const token = currentUser?.token;
-  const headers = {'Content-Type':'application/json','Authorization':'Bearer '+token};
+  const btn = document.querySelector('.rm-btn-save');
+  if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем…'; }
   try {
     const url = roomId ? `${API}/api/hotels/rooms/${roomId}` : `${API}/api/hotels/rooms`;
     const method = roomId ? 'PATCH' : 'POST';
     const body = roomId ? data : {...data, hotel_id: myHotelId};
-    const r = await fetch(url, {method, headers, body: JSON.stringify(body)});
-    if (r.ok) {
-      closeRoomModal();
-      loadHotelRooms(myHotelId);
-    } else {
-      const d = await r.json();
-      alert('Ошибка: ' + (d.error || 'Неизвестная ошибка'));
+    const r = await fetch(url, {method, headers: authHeaders(true), body: JSON.stringify(body)});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert('Ошибка: ' + (d.error || 'Неизвестная ошибка')); return; }
+    const id = roomId || (d.room && d.room.id);
+    // Создание номера ссылки iCal не принимает — дописываем их сразу следом,
+    // иначе вставленные при создании ссылки молча терялись.
+    if (!roomId && id && icalUrls.length) {
+      await fetch(`${API}/api/hotels/rooms/${id}`, {method: 'PATCH', headers: authHeaders(true), body: JSON.stringify({ical_import_urls: JSON.stringify(icalUrls)})}).catch(() => {});
     }
+    // Фото, удобства и этаж — новой ручкой. Раньше они уходили в hotels.js,
+    // который их не принимает: всё, что хозяин отмечал, пропадало при сохранении.
+    let extraErr = '';
+    if (id) {
+      const r2 = await fetch(`${API}/api/partner/rooms/${encodeURIComponent(id)}/extra`, {
+        method: 'PATCH', headers: authHeaders(true),
+        body: JSON.stringify({ photos: rmPhotos, amenities, floor: floorV === '' ? null : floorV })
+      }).catch(() => null);
+      if (!r2 || !r2.ok) { const d2 = r2 ? await r2.json().catch(() => ({})) : {}; extraErr = d2.error || 'сервер не ответил'; }
+    }
+    closeRoomModal();
+    loadHotelRooms(myHotelId);
+    try { if (typeof calInit === 'function' && document.getElementById('page-calendar').classList.contains('on')) calInit(); } catch(e) {}
+    if (extraErr) alert('Номер сохранён, но фото, удобства и этаж — нет: ' + extraErr);
+    else showToast('✅ Номер сохранён');
   } catch(e) {
     console.error('saveRoom error:', e.message);
+    alert('Ошибка соединения — номер не сохранён');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '💾 Сохранить'; }
   }
 }
 
 function addRoom() { openRoomModal(null); }
 
+// Окно правки открываем с ПОЛНЫМИ данными номера. Раньше номер брался из публичной
+// карточки объекта, где нет описания: окно показывало пустое описание, и первое же
+// «Сохранить» стирало его в базе.
 async function editRoom(roomId) {
-  const token = currentUser?.token;
-  const r = await fetch(`${API}/api/hotels/${myHotelId}`, {headers:{'Authorization':'Bearer '+token}});
+  try {
+    const r = await fetch(`${API}/api/partner/rooms/${encodeURIComponent(roomId)}`, {headers: authHeaders()});
+    if (r.ok) { const d = await r.json(); if (d.room) { openRoomModal(d.room); return; } }
+  } catch(e) {}
+  // запасной путь: сервер ещё без новой ручки
+  const r = await fetch(`${API}/api/hotels/${myHotelId}`, {headers: authHeaders()});
   const data = await r.json();
   const room = (data.room_types||[]).find(r => String(r.id) === String(roomId));
   if (!room) return;
   openRoomModal(room);
+}
+
+// Удаление номера: номер снимается с продажи (на сервере он помечается неактивным),
+// брони по нему остаются в истории.
+async function deleteRoomModal() {
+  const id = document.getElementById('rm-id').value;
+  if (!id) return;
+  const name = document.getElementById('rm-name').value.trim() || 'номер';
+  if (!confirm('Удалить «' + name + '»?\n\nНомер пропадёт с сайта и из календаря цен. Уже сделанные брони останутся.')) return;
+  try {
+    const r = await fetch(`${API}/api/hotels/rooms/${encodeURIComponent(id)}`, {method: 'DELETE', headers: authHeaders()});
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { alert(d.error || 'Не удалось удалить'); return; }
+    closeRoomModal();
+    loadHotelRooms(myHotelId);
+    showToast('Номер удалён');
+  } catch(e) { alert('Ошибка соединения'); }
 }
 
 
@@ -2041,6 +2359,394 @@ function calMsg(text,ok){
   setTimeout(()=>{m.style.display='none';},4000);
 }
 
+// ══════════════════════════════════════════════════════
+// 27.09 — ГОТОВНОСТЬ ОБЪЯВЛЕНИЯ
+// ══════════════════════════════════════════════════════
+// Новый хозяин заходит в пустой кабинет и не знает, с чего начать.
+// Здесь список того, без чего объект продаётся плохо, и кнопка к каждому пункту.
+// Пункт, данные для которого ещё не загрузились, не считаем ни сделанным, ни пропущенным.
+function readyRender(){
+  var sec=document.getElementById('rd-section'), box=document.getElementById('rd-box');
+  if(!sec||!box||!_rd.hotel) return;
+  var h=_rd.hotel, ph=_rd.photos, rooms=_rd.rooms, rq=_rd.req;
+  var items=[
+    {ok: !!(String(h.name_ru||'').trim() && h.city_id), t:'Название и город', f:'h-city'},
+    {ok: h.lat!=null && h.lng!=null && h.lat!=='' && h.lng!=='', t:'Точка на карте', f:'h-coords'},
+    {ok: String(h.description_ru||'').trim().length>=300, t:'Описание от 300 знаков', hint:(_ai.enabled?'поможет ИИ-помощник':''), f:'h-desc'},
+    {ok: ph==null?null:ph.length>=5, t:'Фото: 5 и больше', hint:(ph?('сейчас '+ph.length):''), f:'ph-zone'},
+    {ok: rooms==null?null:rooms.some(function(r){return parseFloat(r.base_price)>0;}), t:'Номер с ценой', f:'rooms-list'},
+    {ok: !!String(h.phone||'').trim(), t:'Телефон объекта', f:'h-phone'},
+    {ok: !!String(h.cancel_rules||'').trim(), t:'Правила отмены', f:'h-cancel-pick'},
+    {ok: rq===undefined?null:!!(rq&&rq.legal_name), t:'Реквизиты для договора', page:'profile', f:'req-block'}
+  ];
+  var done=items.filter(function(i){return i.ok===true;}).length;
+  var pct=Math.round(done*100/items.length);
+  var miss=items.filter(function(i){return i.ok===false;});
+  sec.style.display='';
+  box.innerHTML='<div class="rd-top"><div class="rd-pct">'+pct+'%</div><div class="rd-bar"><i style="width:'+pct+'%"></i></div></div>'
+    +(miss.length
+      ? '<div class="rd-list">'+miss.map(function(i){
+          return '<button type="button" class="rd-it" onclick="readyGo(\''+(i.page||'hotel')+'\',\''+i.f+'\')">⬜ '+esc(i.t)
+            +(i.hint?' <span style="color:var(--muted);font-size:12px">· '+esc(i.hint)+'</span>':'')+'<b>Заполнить →</b></button>';
+        }).join('')+'</div>'
+      : (pct===100?'<div class="rd-done">✅ Объявление заполнено полностью.</div>':''));
+}
+function readyGo(page,id){
+  showPage(page);
+  setTimeout(function(){
+    var el=document.getElementById(id); if(!el) return;
+    el.scrollIntoView({behavior:'smooth',block:'center'});
+    if(/^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)) try{ el.focus({preventScroll:true}); }catch(e){}
+  },250);
+}
+
+// ══════════════════════════════════════════════════════
+// 27.09 — ФОТО ФАЙЛАМИ
+// ══════════════════════════════════════════════════════
+// Снимок уменьшается прямо в телефоне до 1600 px по длинной стороне и
+// пересобирается в JPEG. Так он весит 200–500 КБ вместо 4–8 МБ, грузится
+// по мобильному интернету за секунды, а данные съёмки (в том числе координаты)
+// остаются в телефоне. Сервер ещё раз проверяет файл и сам вырезает лишнее.
+function photoPick(){
+  if(!_photosApi){ alert('Загрузка файлов заработает после обновления сервера. Пока можно добавить фото по ссылке.'); return; }
+  if(_photos.length>=30){ alert('Уже 30 фото — это максимум. Удалите лишние, чтобы добавить новые.'); return; }
+  var i=document.getElementById('ph-file'); if(i){ i.value=''; i.click(); }
+}
+async function shrinkImage(file){
+  var MAX=1600, src=null, w=0, h=0, done=function(){};
+  try{
+    src=await createImageBitmap(file,{imageOrientation:'from-image'});
+    w=src.width; h=src.height; done=function(){ try{ src.close(); }catch(e){} };
+  }catch(e){
+    src=await new Promise(function(res,rej){
+      var url=URL.createObjectURL(file), im=new Image();
+      im.onload=function(){ URL.revokeObjectURL(url); res(im); };
+      im.onerror=function(){ URL.revokeObjectURL(url); rej(new Error('этот формат не открывается — сохраните фото как JPEG')); };
+      im.src=url;
+    });
+    w=src.naturalWidth; h=src.naturalHeight;
+  }
+  if(Math.max(w,h)<800){ done(); throw new Error('фото маленькое ('+w+'×'+h+'), нужно от 800 px по длинной стороне'); }
+  var k=Math.min(1,MAX/Math.max(w,h)), cw=Math.round(w*k), ch=Math.round(h*k);
+  var c=document.createElement('canvas'); c.width=cw; c.height=ch;
+  var ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,cw,ch);
+  ctx.imageSmoothingQuality='high'; ctx.drawImage(src,0,0,cw,ch); done();
+  var q=0.82, blob=null;
+  for(var t=0;t<4;t++){
+    blob=await new Promise(function(r){ c.toBlob(r,'image/jpeg',q); });
+    if(blob && blob.size<=1.8*1024*1024) break;
+    q-=0.12;
+  }
+  if(!blob) throw new Error('не удалось обработать фото');
+  return blob;
+}
+async function photoFiles(files){
+  files=[].slice.call(files||[]).filter(function(f){ return /^image\//.test(f.type)||/\.(jpe?g|png|webp|heic|heif)$/i.test(f.name); });
+  if(!files.length) return;
+  if(!myHotelId){ alert(window._noHotel||'Объект ещё не загрузился — подождите пару секунд'); return; }
+  if(!_photosApi){ photoPick(); return; }
+  var free=30-_photos.length;
+  if(free<=0){ alert('Уже 30 фото — это максимум.'); return; }
+  if(files.length>free){ alert('Можно добавить ещё '+free+' фото — загрузим первые '+free+'.'); files=files.slice(0,free); }
+  var prog=document.getElementById('upload-progress'), btn=document.getElementById('ph-btn'), ok=0, errs=[];
+  if(btn) btn.disabled=true;
+  for(var i=0;i<files.length;i++){
+    prog.textContent='Загружаем '+(i+1)+' из '+files.length+'…';
+    try{
+      var blob=await shrinkImage(files[i]);
+      var r=await fetch(API+'/api/partner/hotels/'+encodeURIComponent(myHotelId)+'/photos',{method:'POST',headers:Object.assign(authHeaders(),{'Content-Type':'image/jpeg'}),body:blob});
+      var d=await r.json().catch(function(){return {};});
+      if(!r.ok) throw new Error(d.error||('ошибка '+r.status));
+      _photos.push(d.photo); renderHotelPhotos(); ok++;
+    }catch(e){
+      errs.push((files[i].name||'фото')+': '+e.message);
+      if(/Максимум/.test(e.message)) break;
+    }
+  }
+  if(btn) btn.disabled=false;
+  prog.textContent=(ok?('✅ Добавлено: '+ok):'')+(errs.length?((ok?' · ':'')+'не загрузилось: '+errs.length):'');
+  if(errs.length) alert('Не все фото загрузились:\n\n'+errs.join('\n'));
+  if(ok) showToast('Фото добавлены');
+  setTimeout(function(){ if(prog) prog.textContent=''; },6000);
+}
+function renderHotelPhotos(){
+  _rd.photos=_photos;
+  var grid=document.getElementById('hotel-photos-grid'); if(!grid) return;
+  var cnt=document.getElementById('ph-count'); if(cnt) cnt.textContent=_photos.length?(_photos.length+' из 30'):'';
+  if(!_photos.length){
+    grid.innerHTML='<div class="ph-empty">Фото пока нет. Первое фото станет обложкой в поиске.</div>';
+  } else {
+    grid.innerHTML=_photos.map(function(p,i){
+      var can=_photosApi && p.id;
+      return '<div class="ph">'
+        +'<img src="'+safeUrl(p.url)+'" loading="lazy" alt="" onerror="this.style.opacity=.15">'
+        +(i===0?'<span class="ph-cover">Обложка</span>':'')
+        +(can?'<button type="button" class="ph-del" title="Удалить" onclick="photoDelete(\''+escAttr(p.id)+'\')">✕</button>':'')
+        +(can?'<div class="ph-bar">'
+          +'<button type="button" title="Левее" '+(i===0?'disabled':'')+' onclick="photoMove('+i+',-1)">◀</button>'
+          +(i?'<button type="button" title="Сделать обложкой" onclick="photoMove('+i+','+(-i)+')">★</button>':'<span></span>')
+          +'<button type="button" title="Правее" '+(i===_photos.length-1?'disabled':'')+' onclick="photoMove('+i+',1)">▶</button>'
+          +'</div>':'')
+        +'</div>';
+    }).join('');
+  }
+  var b=document.getElementById('ph-btn'); if(b) b.style.opacity=_photosApi?'':'.5';
+  readyRender();
+}
+async function photoMove(i,delta){
+  var j=Math.max(0,Math.min(_photos.length-1,i+delta)); if(j===i) return;
+  var prev=_photos, arr=_photos.slice(), x=arr.splice(i,1)[0]; arr.splice(j,0,x);
+  _photos=arr.map(function(p,k){ return Object.assign({},p,{is_cover:k===0}); });
+  renderHotelPhotos();
+  try{
+    var r=await fetch(API+'/api/partner/hotels/'+encodeURIComponent(myHotelId)+'/photos/order',{method:'PUT',headers:authHeaders(true),body:JSON.stringify({ids:_photos.map(function(p){return p.id;})})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('ошибка '+r.status));
+    _photos=d.photos||_photos; renderHotelPhotos();
+    if(j===0) showToast('Обложка обновлена');
+  }catch(e){
+    _photos=prev; renderHotelPhotos();
+    alert('Не удалось поменять порядок: '+e.message);
+    loadHotelPhotos(myHotelId);
+  }
+}
+async function photoDelete(id){
+  if(!confirm('Удалить это фото?')) return;
+  try{
+    var r=await fetch(API+'/api/partner/hotels/'+encodeURIComponent(myHotelId)+'/photos/'+encodeURIComponent(id),{method:'DELETE',headers:authHeaders()});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) throw new Error(d.error||('ошибка '+r.status));
+    _photos=d.photos||[]; renderHotelPhotos(); showToast('Фото удалено');
+  }catch(e){ alert('Не удалось удалить: '+e.message); }
+}
+// Перетаскивание файлов мышью на компьютере
+(function(){
+  var z=document.getElementById('ph-zone'); if(!z) return;
+  ['dragenter','dragover'].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.add('ph-drop'); }); });
+  ['dragleave','drop'].forEach(function(ev){ z.addEventListener(ev,function(e){ e.preventDefault(); z.classList.remove('ph-drop'); }); });
+  z.addEventListener('drop',function(e){ if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files.length) photoFiles(e.dataTransfer.files); });
+})();
+
+// ══════════════════════════════════════════════════════
+// 27.09 — РЕКВИЗИТЫ ПО УНП
+// ══════════════════════════════════════════════════════
+// Как в анкете партнёра у крупных площадок: ввёл УНП — наименование, адрес и статус
+// подставились из открытого реестра МНС. В договор идёт то, что записано у налоговой.
+function reqFormHTML(){
+  return ''
+  +'<div class="req" id="req-block">'
+  +'<div class="req-h">🧾 Реквизиты для договора и выплат</div>'
+  +'<div class="req-sub">Введите УНП — наименование, адрес и статус подставятся из открытого реестра МНС. Если УНП нет, выберите «Физлицо».</div>'
+  +'<div class="seg3" id="rq-type">'
+  +  '<button type="button" data-t="org" onclick="rqType(\'org\')">Организация</button>'
+  +  '<button type="button" data-t="ip" onclick="rqType(\'ip\')">ИП</button>'
+  +  '<button type="button" data-t="person" onclick="rqType(\'person\')">Физлицо</button>'
+  +'</div>'
+  +'<div class="rq-grid"><div class="rq-f"><label>УНП <span id="rq-unp-opt" style="display:none;font-weight:400">— если есть</span></label>'
+  +  '<input id="rq-unp" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="9 цифр" oninput="rqUnpInput()">'
+  +  '<div class="rq-msg" id="rq-unp-msg"></div></div></div>'
+  +'<div class="rq-card" id="rq-legal" style="display:none"></div>'
+  +'<div class="rq-grid" id="rq-manual" style="display:none;margin-bottom:12px">'
+  +  '<div class="rq-f" style="grid-column:1/-1"><label id="rq-name-l">Наименование</label><input id="rq-name" maxlength="300"></div>'
+  +  '<div class="rq-f" style="grid-column:1/-1"><label id="rq-addr-l">Юридический адрес</label><input id="rq-addr" maxlength="300"></div>'
+  +'</div>'
+  +'<div class="rq-grid">'
+  +  '<div class="rq-f" style="grid-column:1/-1"><label>Расчётный счёт (IBAN)</label><input id="rq-iban" autocomplete="off" placeholder="BY00 XXXX 0000 0000 0000 0000 0000" oninput="this.value=this.value.toUpperCase()"></div>'
+  +  '<div class="rq-f"><label>БИК банка</label><input id="rq-bic" autocomplete="off" placeholder="XXXXBY2X" oninput="this.value=this.value.toUpperCase()"></div>'
+  +  '<div class="rq-f"><label>Банк</label><input id="rq-bank" placeholder="Название банка"></div>'
+  +  '<div class="rq-f rq-org"><label>Кто подписывает договор</label><input id="rq-signer" placeholder="ФИО руководителя"></div>'
+  +  '<div class="rq-f rq-org"><label>Должность и основание</label><input id="rq-pos" placeholder="Директор, действует на основании Устава"></div>'
+  +  '<div class="rq-f" style="grid-column:1/-1"><label>Email для документов</label><input id="rq-mail" type="email" placeholder="buh@example.by"></div>'
+  +'</div>'
+  +'<div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">'
+  +  '<button type="button" class="copy-btn" id="rq-save" onclick="saveRequisites()" style="padding:11px 20px;font-size:13px">Сохранить реквизиты</button>'
+  +  '<span class="rq-msg" id="rq-msg" style="margin:0"></span>'
+  +'</div>'
+  +'</div>';
+}
+async function loadRequisites(fill){
+  try{
+    var r=await fetch(API+'/api/partner/requisites',{headers:authHeaders()});
+    if(!r.ok) return;                       // сервер ещё без новой ручки — пункт просто не считается
+    var d=await r.json();
+    _rd.req=d.requisites||null; _rq.prefill=d.prefill||null;
+    readyRender();
+    if(fill) rqFill();
+  }catch(e){}
+}
+function rqType(t,silent){
+  _rq.type=t;
+  if(!silent && t==='person'){ var n=document.getElementById('rq-name'); if(n&&_rq.lookup&&_rq.lookup.state==='ok'&&n.value===(_rq.lookup.data.name_short||'')) n.value=''; }
+  rqRender();
+}
+function rqRender(){
+  var t=_rq.type, lk=_rq.lookup;
+  document.querySelectorAll('#rq-type button').forEach(function(b){ b.classList.toggle('on',b.getAttribute('data-t')===t); });
+  var opt=document.getElementById('rq-unp-opt'); if(opt) opt.style.display=(t==='person')?'':'none';
+  document.querySelectorAll('.rq-org').forEach(function(el){ el.style.display=(t==='org')?'':'none'; });
+  var man=document.getElementById('rq-manual');
+  if(man) man.style.display=(t==='person'||(lk&&lk.state==='down'))?'':'none';
+  var nl=document.getElementById('rq-name-l'), al=document.getElementById('rq-addr-l');
+  if(nl) nl.textContent=(t==='person')?'ФИО полностью':'Наименование';
+  if(al) al.textContent=(t==='person')?'Адрес':'Юридический адрес';
+  var card=document.getElementById('rq-legal');
+  if(card){
+    if(lk&&lk.state==='ok'){
+      var d=lk.data||{}, act=d.active!==false;
+      card.className='rq-card '+(act?'ok':'bad'); card.style.display='';
+      card.innerHTML='<b>'+esc(d.name_short||d.name_full||'')+'</b><br>'+esc(d.address||'')
+        +'<br><span style="color:'+(act?'var(--green)':'var(--red)')+';font-weight:600">'+(act?'✓ ':'⚠ ')+esc(d.status||'')+'</span>'
+        +' <span style="color:var(--muted);font-size:12px">· данные реестра МНС</span>'
+        +(act?'':'<div style="margin-top:6px;color:var(--red);font-size:12px">Плательщик в реестре не действующий — проверьте УНП.</div>');
+    } else { card.style.display='none'; }
+  }
+}
+var _rqT=null;
+function rqUnpInput(){
+  var el=document.getElementById('rq-unp'); if(!el) return;
+  var d=el.value.replace(/\D/g,''); if(el.value!==d) el.value=d;
+  var m=document.getElementById('rq-unp-msg'); if(m) m.textContent='';
+  clearTimeout(_rqT); _rq.lookup=null;
+  if(d.length===9) _rqT=setTimeout(function(){ rqLookup(d); },250);
+  else if(d.length>9 && m){ m.textContent='УНП — 9 цифр'; m.style.color='var(--red)'; }
+  rqRender();
+}
+async function rqLookup(unp){
+  var m=document.getElementById('rq-unp-msg');
+  if(m){ m.textContent='Ищем в реестре МНС…'; m.style.color='var(--muted)'; }
+  try{
+    var r=await fetch(API+'/api/partner/unp/'+encodeURIComponent(unp));
+    var d=await r.json().catch(function(){return {};});
+    if(((document.getElementById('rq-unp')||{}).value||'')!==unp) return;   // пока ждали, цифры поменяли
+    if(r.status===503){ _rq.lookup={state:'down'}; if(m){ m.textContent='Реестр МНС сейчас не отвечает — впишите наименование и адрес вручную'; m.style.color='var(--amber)'; } }
+    else if(!r.ok){ _rq.lookup=null; if(m){ m.textContent=d.error||('ошибка '+r.status); m.style.color='var(--red)'; } }
+    else if(!d.found){ _rq.lookup={state:'none'}; if(m){ m.textContent='Такого УНП нет в реестре МНС — проверьте цифры'; m.style.color='var(--red)'; } }
+    else {
+      _rq.lookup={state:'ok',data:d.data}; if(m) m.textContent='';
+      if(_rq.type!=='person') _rq.type=/^индивидуальный предприниматель/i.test(d.data.name_full||'')?'ip':'org';
+    }
+  }catch(e){ _rq.lookup={state:'down'}; if(m){ m.textContent='Нет связи с сервером — впишите данные вручную'; m.style.color='var(--amber)'; } }
+  rqRender();
+}
+function rqFill(){
+  if(!document.getElementById('rq-type')) return;
+  var q=_rd.req, p=_rq.prefill;
+  function v(id,x){ var el=document.getElementById(id); if(el) el.value=(x==null?'':x); }
+  _rq.lookup=null;
+  if(q){
+    _rq.type=q.partner_type||'org';
+    v('rq-unp',q.unp); v('rq-name',q.legal_name); v('rq-addr',q.legal_address);
+    v('rq-iban',q.iban?String(q.iban).replace(/(.{4})/g,'$1 ').trim():''); v('rq-bic',q.bic); v('rq-bank',q.bank_name);
+    v('rq-signer',q.signer_name); v('rq-pos',q.signer_position); v('rq-mail',q.doc_email);
+    if(q.legal_verified) _rq.lookup={state:'ok',data:{name_short:q.legal_name,address:q.legal_address,status:q.legal_status,active:/^действующ/i.test(q.legal_status||'')}};
+    else if(q.partner_type!=='person' && q.unp){
+      _rq.lookup={state:'down'};
+      var m=document.getElementById('rq-unp-msg'); if(m){ m.textContent='Данные ещё не сверены с реестром МНС'; m.style.color='var(--amber)'; }
+    }
+    rqRender();
+  } else if(p && p.unp){
+    _rq.type='org'; v('rq-unp',p.unp); rqRender(); rqLookup(p.unp);
+    var mm=document.getElementById('rq-msg'); if(mm){ mm.textContent='УНП взят из вашей заявки — проверьте и сохраните'; mm.style.color='var(--muted)'; }
+  } else { _rq.type='org'; rqRender(); }
+}
+async function saveRequisites(){
+  function g(id){ return ((document.getElementById(id)||{}).value||'').trim(); }
+  var t=_rq.type, unp=g('rq-unp').replace(/\D/g,'');
+  var m=document.getElementById('rq-msg'), btn=document.getElementById('rq-save');
+  function say(x,ok){ if(m){ m.textContent=x; m.style.color=ok?'var(--green)':'var(--red)'; } }
+  if(t!=='person' && unp.length!==9) return say('Укажите УНП — 9 цифр',false);
+  if(unp && _rq.lookup && _rq.lookup.state==='none') return say('Такого УНП нет в реестре МНС — проверьте цифры',false);
+  if(t==='person' && !g('rq-name')) return say('Укажите ФИО полностью',false);
+  var body={partner_type:t, unp:unp, legal_name:g('rq-name'), legal_address:g('rq-addr'),
+    iban:g('rq-iban'), bic:g('rq-bic'), bank_name:g('rq-bank'),
+    signer_name:(t==='org'?g('rq-signer'):''), signer_position:(t==='org'?g('rq-pos'):''), doc_email:g('rq-mail')};
+  if(btn) btn.disabled=true; say('Сохраняем…',true);
+  try{
+    var r=await fetch(API+'/api/partner/requisites',{method:'PUT',headers:authHeaders(true),body:JSON.stringify(body)});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok) return say(d.error||('Не удалось сохранить: '+r.status),false);
+    _rd.req=d.requisites; rqFill(); readyRender();
+    say((d.requisites.legal_verified||t==='person')?'✅ Сохранено':'✅ Сохранено. Реестр МНС не ответил — данные пока не сверены',true);
+    showToast('Реквизиты сохранены');
+  }catch(e){ say('Ошибка соединения',false); }
+  finally{ if(btn) btn.disabled=false; }
+}
+
+// ══════════════════════════════════════════════════════
+// 27.09 — ИИ-ПОМОЩНИК ОБЪЯВЛЕНИЯ
+// ══════════════════════════════════════════════════════
+// Кнопка появляется, только если помощник включён на сервере. Лимиты считает сервер;
+// здесь только показываем остаток. Текст попадает в форму лишь по кнопке «Вставить».
+async function aiStatus(){
+  try{
+    var r=await fetch(API+'/api/partner/ai/status',{headers:authHeaders()});
+    if(!r.ok) return;
+    var d=await r.json();
+    _ai.enabled=!!d.enabled; _ai.left=(d.left!=null)?d.left:null;
+    var box=document.getElementById('ai-box'); if(box) box.style.display=_ai.enabled?'':'none';
+    var mic=document.getElementById('ai-mic'); if(mic && !(window.SpeechRecognition||window.webkitSpeechRecognition)) mic.style.display='none';
+    aiLeft(); readyRender();
+  }catch(e){}
+}
+function aiLeft(){
+  var el=document.getElementById('ai-left'); if(el) el.textContent=(_ai.left!=null)?('Сегодня осталось: '+_ai.left):'';
+  var b=document.getElementById('ai-go'); if(b && _ai.left===0) b.disabled=true;
+}
+async function aiGenerate(){
+  if(!myHotelId) return;
+  var btn=document.getElementById('ai-go'), out=document.getElementById('ai-out');
+  var notes=((document.getElementById('ai-notes')||{}).value||'').trim();
+  var label=btn.textContent; btn.disabled=true; btn.textContent='Пишем… 10–20 секунд';
+  try{
+    var r=await fetch(API+'/api/partner/ai/listing',{method:'POST',headers:authHeaders(true),body:JSON.stringify({hotel_id:myHotelId,notes:notes})});
+    var d=await r.json().catch(function(){return {};});
+    if(!r.ok){ alert(d.error||('Не получилось: '+r.status)); return; }
+    _ai.last=d; if(d.left!=null) _ai.left=d.left;
+    out.style.display='';
+    out.innerHTML='<h4>Описание</h4><div class="ai-txt">'+esc(d.description)+'</div>'
+      +(d.rules?'<h4>Правила дома</h4><div class="ai-txt">'+esc(d.rules)+'</div>':'')
+      +((d.tips&&d.tips.length)?'<h4>Чего не хватает в объявлении</h4><div class="ai-txt">'+d.tips.map(function(x){return '• '+esc(x);}).join('\n')+'</div>':'')
+      +'<div class="ai-btns"><button type="button" class="pri" onclick="aiApply(\'desc\')">Вставить описание</button>'
+      +(d.rules?'<button type="button" onclick="aiApply(\'rules\')">Вставить правила</button>':'')+'</div>';
+  }catch(e){ alert('Ошибка соединения'); }
+  finally{ btn.textContent=label; btn.disabled=(_ai.left===0); aiLeft(); }
+}
+function aiApply(what){
+  var d=_ai.last; if(!d) return;
+  var el=document.getElementById(what==='desc'?'h-desc':'h-rules'); if(!el) return;
+  var val=(what==='desc')?d.description:d.rules;
+  if(el.value.trim() && el.value.trim()!==val && !confirm('Заменить текущий текст?')) return;
+  el.value=val;
+  el.scrollIntoView({behavior:'smooth',block:'center'});
+  showToast('Вставлено. Проверьте текст и нажмите «Сохранить»');
+}
+var _aiRec=null;
+function aiMic(){
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition, b=document.getElementById('ai-mic');
+  if(!SR){ alert('Голосовой ввод в этом браузере не работает. На телефоне можно нажать микрофон на клавиатуре.'); return; }
+  if(_aiRec){ try{ _aiRec.stop(); }catch(e){} return; }
+  var rec=new SR(); rec.lang='ru-RU'; rec.interimResults=false; rec.continuous=false;
+  rec.onresult=function(e){ var t=''; for(var i=0;i<e.results.length;i++) t+=e.results[i][0].transcript; var ta=document.getElementById('ai-notes'); if(ta) ta.value=(ta.value.trim()?ta.value.trim()+' ':'')+t; };
+  rec.onend=function(){ _aiRec=null; if(b) b.classList.remove('rec'); };
+  rec.onerror=function(){ _aiRec=null; if(b) b.classList.remove('rec'); };
+  _aiRec=rec; if(b) b.classList.add('rec');
+  try{ rec.start(); }catch(e){ _aiRec=null; if(b) b.classList.remove('rec'); }
+}
+
+// ══════════════════════════════════════════════════════
+// 27.09 — ТЕЛЕФОН: меню «Ещё»
+// ══════════════════════════════════════════════════════
+function moreOpen(){
+  var s=document.getElementById('more-sheet'); if(!s) return;
+  var u=document.getElementById('ms-user'); if(u&&currentUser){ var nm=currentUser.name||'', em=currentUser.email||''; u.textContent=(nm&&nm!==em)?(nm+' · '+em):em; }
+  s.classList.add('open'); document.documentElement.classList.add('zb-lock');
+}
+function moreClose(){
+  var s=document.getElementById('more-sheet'); if(s) s.classList.remove('open');
+  var rm=document.getElementById('room-modal-overlay');
+  if(!rm||!rm.classList.contains('open')) document.documentElement.classList.remove('zb-lock');
+}
+
 </script>
 
 <!-- МОДАЛЬНОЕ ОКНО НОМЕРА -->
@@ -2119,13 +2825,20 @@ function calMsg(text,ok){
       <div class="rm-field">
         <label class="rm-label">Фото номера</label>
         <div class="rm-photos" id="rm-photos"></div>
-        <div style="display:flex;gap:8px;margin-top:8px">
-          <input class="rm-input" id="rm-photo-url" placeholder="Ссылка на фото (https://...)" style="flex:1">
-          <button onclick="addRoomPhoto()" style="background:var(--green);color:#c9f135;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">+ Фото</button>
+        <div style="display:flex;gap:10px;margin-top:10px;align-items:center;flex-wrap:wrap">
+          <button type="button" onclick="rmPhotoPick()" style="background:var(--green);color:#c9f135;border:none;padding:10px 16px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit">📷 Добавить фото</button>
+          <button type="button" class="ph-link" onclick="var b=document.getElementById('rm-url-row');b.style.display=(b.style.display==='none')?'flex':'none'">или по ссылке</button>
+          <span id="rm-photo-msg" style="font-size:12px;color:var(--muted)"></span>
+        </div>
+        <input type="file" id="rm-file" accept="image/*" multiple style="display:none" onchange="rmPhotoFiles(this.files)">
+        <div id="rm-url-row" style="display:none;gap:8px;margin-top:8px">
+          <input class="rm-input" id="rm-photo-url" placeholder="Ссылка на фото (https://...)" style="flex:1;min-width:0">
+          <button onclick="addRoomPhoto()" style="background:#fff;color:var(--green);border:1.5px solid var(--green);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">+ Фото</button>
         </div>
       </div>
     </div>
     <div class="room-modal-foot">
+      <button class="rm-btn rm-btn-del" id="rm-del" onclick="deleteRoomModal()" style="display:none">Удалить</button>
       <button class="rm-btn rm-btn-cancel" onclick="closeRoomModal()">Отмена</button>
       <button class="rm-btn rm-btn-save" onclick="saveRoomModal()">💾 Сохранить</button>
     </div>
