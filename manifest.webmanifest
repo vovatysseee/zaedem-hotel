@@ -1,0 +1,16 @@
+{
+  "name": "Заедем.by — кабинет партнёра",
+  "short_name": "Заедем Партнёр",
+  "description": "Брони, цены, календарь и фото вашего объекта",
+  "lang": "ru",
+  "start_url": "./#dashboard",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f2ee",
+  "theme_color": "#1a5c38",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ]
+}
