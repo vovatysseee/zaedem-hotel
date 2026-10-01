@@ -66,6 +66,9 @@ button{cursor:pointer;font-family:inherit}
 .login-err{color:var(--red);font-size:13px;margin-top:10px;text-align:center}
 .login-hint{font-size:12px;color:var(--muted);margin-top:16px;text-align:center}
 .login-hint a{color:var(--green);text-decoration:none}
+.login-keep{display:flex;gap:10px;align-items:flex-start;margin:4px 0 12px;font-size:13px;color:var(--ink2);cursor:pointer;line-height:1.35}
+.login-keep input{width:18px;height:18px;margin-top:1px;accent-color:var(--green);flex-shrink:0}
+.login-keep small{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
 
 /* SIDEBAR */
 .sidebar{width:230px;background:var(--green);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:50}
@@ -336,6 +339,7 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
       <label>Пароль</label>
       <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
     </div>
+    <label class="login-keep"><input type="checkbox" id="loginKeep"> <span>Запомнить на этом телефоне<small>Вход сохранится на 7 дней. Отмечайте только на своём телефоне</small></span></label>
     <button class="login-btn" onclick="doLogin()">Войти</button>
     <div class="login-err" id="loginErr"></div>
     <div class="login-hint">Нет аккаунта? <a href="https://zaedem.by">Подать заявку →</a></div>
@@ -743,6 +747,51 @@ function authHeaders(json) {
   return h;
 }
 
+// ── ГДЕ ХРАНИТСЯ ВХОД ──
+// Обычно — до закрытия вкладки (sessionStorage) и с автовыходом через 60 минут
+// без действий: в кабинете данные гостей. Если хозяин отметил «Запомнить на этом
+// телефоне», вход хранится на устройстве (localStorage) до конца срока пропуска,
+// который выдаёт сервер. «Выйти» стирает его, смена пароля обрывает все входы
+// на всех устройствах (это делает сервер). Вход админа по ссылке не запоминается.
+// Срок пропуска партнёра — 7 дней (users.js), дальше снова пароль.
+const KEEP_KEY = 'hotel_user_keep';
+let _keepMode = false;   // true — текущий вход запомнен на устройстве
+function sessKept() { return _keepMode; }
+function sessSave(u, keep) {
+  if (keep === true) _keepMode = true;
+  if (keep === false) _keepMode = false;
+  try { sessionStorage.setItem('hotel_user', JSON.stringify(u)); } catch (e) {}
+  try {
+    if (_keepMode) localStorage.setItem(KEEP_KEY, JSON.stringify(u));
+    else if (keep === false) localStorage.removeItem(KEEP_KEY);
+  } catch (e) {}
+}
+function sessDrop() {
+  try { sessionStorage.removeItem('hotel_user'); } catch (e) {}
+  try { localStorage.removeItem(KEEP_KEY); } catch (e) {}
+}
+function tokenExpired(t) {
+  try {
+    const p = JSON.parse(atob(String(t).split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    return !!(p && p.exp && p.exp * 1000 < Date.now());
+  } catch (e) { return true; }
+}
+function sessLoad() {
+  let raw = null, kept = null;
+  try { raw = sessionStorage.getItem('hotel_user'); } catch (e) {}
+  try { kept = localStorage.getItem(KEEP_KEY); } catch (e) {}
+  if (!raw) raw = kept;
+  if (!raw) return null;
+  try {
+    const u = JSON.parse(raw);
+    if (!u || !u.token || tokenExpired(u.token)) { sessDrop(); return null; }
+    // Запомненным считаем только тот же самый вход, что лежит на устройстве
+    let k = null; try { k = kept ? JSON.parse(kept) : null; } catch (e) {}
+    _keepMode = !!(k && k.token === u.token);
+    return u;
+  } catch (e) { sessDrop(); return null; }
+}
+
 // ── AUTH ──
 async function doLogin() {
   const email = document.getElementById('loginEmail').value.trim();
@@ -766,7 +815,7 @@ async function doLogin() {
       showErr('Доступ только для отельеров'); return;
     }
     currentUser = {...d.user, token: d.token};
-    sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
+    sessSave(currentUser, !!(document.getElementById('loginKeep') || {}).checked);
     initApp();
   } catch(e) { showErr('Ошибка соединения'); }
 }
@@ -778,7 +827,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => {
 function showErr(msg) { document.getElementById('loginErr').textContent = msg; }
 
 function doLogout() {
-  sessionStorage.removeItem('hotel_user');
+  sessDrop();
   location.reload();
 }
 
@@ -795,6 +844,7 @@ let _idleTimer = null, _idleWarnTimer = null;
 function resetIdleTimer() {
   clearTimeout(_idleTimer); clearTimeout(_idleWarnTimer);
   if (!sessionStorage.getItem('hotel_user')) return;
+  if (sessKept()) return;   // «Запомнить на этом телефоне» — автовыхода нет, выход кнопкой
   _idleWarnTimer = setTimeout(function(){
     try { const m=document.getElementById('cal-msg'); if(m){} } catch(e){}
     console.warn('Сессия закроется через минуту без действий');
@@ -880,7 +930,8 @@ if (_urlToken) {
     }
     if (_ok) {
       currentUser = { id:_p.id, email:_p.email, role:_p.role, name:_p.email, token:_urlToken };
-      sessionStorage.setItem('hotel_user', JSON.stringify(currentUser));
+      // Вход по ссылке живёт только во вкладке и запомненный вход не трогает
+      try { sessionStorage.setItem('hotel_user', JSON.stringify(currentUser)); } catch (e) {}
       initApp();
     } else if (_prev) {
       currentUser = _prev; initApp();
@@ -890,8 +941,19 @@ if (_urlToken) {
     alert('Ссылка для входа недействительна или устарела. Войдите обычным способом.');
   }
 } else {
-  const saved = sessionStorage.getItem('hotel_user');
-  if (saved) { try { currentUser = JSON.parse(saved); initApp(); } catch(e){ sessionStorage.removeItem('hotel_user'); } }
+  const saved = sessLoad();
+  if (saved) {
+    currentUser = saved;
+    try { sessionStorage.setItem('hotel_user', JSON.stringify(saved)); } catch (e) {}
+    initApp();
+  } else {
+    try {
+      if (sessionStorage.getItem('cab_expired')) {
+        sessionStorage.removeItem('cab_expired');
+        showErr('Срок входа истёк — войдите снова');
+      }
+    } catch (e) {}
+  }
 }
 
 // ── NAV ──
@@ -1383,12 +1445,12 @@ async function changePassword(){
     // выбросило бы из кабинета сразу после смены собственного пароля.
     if (d.token && currentUser) {
       currentUser.token = d.token;
-      try { sessionStorage.setItem('hotel_user', JSON.stringify(currentUser)); } catch(e){}
+      sessSave(currentUser);
     }
     ['pw-old','pw-new','pw-new2'].forEach(function(id){ const el=document.getElementById(id); if(el) el.value=''; });
     // Пароль сменён — напоминание больше не нужно, и в сохранённой сессии тоже.
     try {
-      if (currentUser) { currentUser.must_change_password = false; sessionStorage.setItem('hotel_user', JSON.stringify(currentUser)); }
+      if (currentUser) { currentUser.must_change_password = false; sessSave(currentUser); }
       var _pw = document.getElementById('pw-warn'); if (_pw) _pw.style.display = 'none';
     } catch (e) {}
     _pwMsg('✅ Пароль изменён. На других устройствах нужно будет войти заново.', true);
@@ -1540,6 +1602,13 @@ async function loadHotelData() {
     const r = await fetch(`${API}/api/hotels/owner/my`, {headers});
     let hotels = null;
     try { hotels = await r.json(); } catch (e) { hotels = null; }
+    if (r.status === 401) {
+      // Пропуск истёк или отозван сменой пароля — обратно на вход
+      sessDrop();
+      try { sessionStorage.setItem('cab_expired', '1'); } catch (e) {}
+      location.reload();
+      return;
+    }
     if (!r.ok || !Array.isArray(hotels)) {
       const why = (r.status === 401 || r.status === 403)
         ? 'Сессия истекла или нет доступа — выйдите и войдите заново.'
