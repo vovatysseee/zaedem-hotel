@@ -35,6 +35,12 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Заедем Партнёр">
 <title>Заедем.by — Личный кабинет партнёра</title>
+<script>
+// 02.10: обновление страницы — сразу открытый раздел, без мелькания входа и «Дашборда».
+// Пока скрипт не открыл раздел, страница не показывается (доли секунды).
+try{ if(sessionStorage.getItem('hotel_user')||localStorage.getItem('hotel_user_keep')||/[?&]token=/.test(location.search)) document.documentElement.className+=' cab-boot'; }catch(e){}
+</script>
+<style>html.cab-boot body{visibility:hidden}</style>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' fill='%23c9f135' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -1265,14 +1271,17 @@ function initApp() {
     var _pw = document.getElementById('pw-warn');
     if (_pw) _pw.style.display = (u && u.must_change_password) ? 'block' : 'none';
   } catch (e) {}
+  // 02.10: сначала открываем нужный раздел (F5 / возврат не сбрасывают), потом грузим данные.
+  // Раньше было наоборот, и «Мой отель» при обновлении грузился дважды.
+  var savedPage = (location.hash || '').replace('#','') || sessionStorage.getItem('cab_page') || 'dashboard';
+  showPage(savedPage);
+  document.documentElement.classList.remove('cab-boot');
   // Load data
   loadMyBookings();
   renderProfile();
-  loadHotelData(); // подгружаем объект сразу → myHotelId доступен для календаря без захода в «Мой отель»
+  // объект — сразу (myHotelId нужен календарю); на «Моём отеле» его уже загрузил showPage
+  if (savedPage !== 'hotel') loadHotelData();
   loadRequisites(false);
-  // Восстанавливаем открытую страницу (F5 / возврат не сбрасывают)
-  var savedPage = (location.hash || '').replace('#','') || sessionStorage.getItem('cab_page') || 'dashboard';
-  showPage(savedPage);
 }
 
 // Вход по токену из адреса (админ заходит в кабинет владельца).
@@ -1285,6 +1294,9 @@ function initApp() {
 // уже открыта на другого человека — спрашиваем подтверждение. Подпись здесь
 // проверить нельзя, её проверяет сервер на каждом запросе; задача этих проверок
 // в другом — не дать подменить сессию незаметно для человека.
+// 02.10: вход запускается, когда весь скрипт кабинета уже выполнен. Раньше он шёл посреди
+// загрузки: при F5 на «Ценах» календарь обращался к ещё не объявленному myHotelId и падал.
+function cabBoot() {
 var _urlToken = new URLSearchParams(location.search).get('token');
 if (_urlToken) {
   // Токен убираем из адреса ДО любых проверок: иначе при отказе он остался бы
@@ -1332,6 +1344,10 @@ if (_urlToken) {
     } catch (e) {}
   }
 }
+document.documentElement.classList.remove('cab-boot');   // нет входа / отказались — показываем форму входа
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', cabBoot); else cabBoot();
+setTimeout(function(){ document.documentElement.classList.remove('cab-boot'); }, 3000);   // страховка
 
 // ── NAV ──
 function showPage(name, el) {
