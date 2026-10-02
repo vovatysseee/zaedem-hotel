@@ -322,6 +322,65 @@ tr:hover td{background:var(--surface)}
 html.zb-lock,html.zb-lock body{overflow:hidden}
 .room-modal{overscroll-behavior:contain}
 .rm-photo-del{width:26px!important;height:26px!important;font-size:13px!important}
+
+/* ═══ КАЛЕНДАРЬ ZDP (01.10.2026) — см. скрипт zdp ═══ */
+.zdp-trig{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:7px 12px;border:1.5px solid var(--zdp-line,#ddd7cb);border-radius:9px;background:#fff;font:inherit;font-size:13px;color:var(--zdp-ink,#1b1b1b);cursor:pointer;text-align:left;white-space:nowrap;line-height:1.2;transition:border-color .15s,box-shadow .15s;max-width:100%}
+.zdp-trig.full{display:flex;width:100%}
+.zdp-trig:hover{border-color:var(--zdp-acc,#1a5c38)}
+.zdp-trig.on,.zdp-trig:focus-visible{border-color:var(--zdp-acc,#1a5c38);box-shadow:0 0 0 3px rgba(26,92,56,.12);outline:none}
+.zdp-trig svg{flex-shrink:0;color:var(--zdp-acc,#1a5c38);opacity:.75}
+.zdp-trig .zdp-v{overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+.zdp-trig .zdp-ph{color:#9b968c}
+.zdp-x{margin-left:auto;flex-shrink:0;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#7a756b;background:#efebe3}
+.zdp-x:hover{background:#e2ddd2;color:#1b1b1b}
+.zdp-back{position:fixed;inset:0;background:rgba(15,20,17,.38);z-index:1999}
+.zdp-pop{position:absolute;z-index:2000;background:#fff;color:#1b1b1b;border:1px solid rgba(0,0,0,.07);border-radius:14px;box-shadow:0 18px 50px rgba(0,0,0,.18);padding:14px 14px 12px;font-size:13px;user-select:none;-webkit-user-select:none;font-family:inherit}
+.zdp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.zdp-ttl{font-weight:700;font-size:13.5px}
+.zdp-hint{font-size:12px;color:#6b665c;margin-top:2px;min-height:15px;font-variant-numeric:tabular-nums}
+.zdp-close{width:28px;height:28px;border:none;border-radius:8px;background:#f3f0ea;color:#555;cursor:pointer;font-size:12px;flex-shrink:0}
+.zdp-close:hover{background:#e8e3d9}
+.zdp-months{display:flex;gap:22px}
+.zdp-m{width:252px}
+.zdp-nav-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.zdp-mt{font-weight:700;text-align:center;flex:1;font-size:13px}
+.zdp-m .zdp-mt::first-letter{text-transform:uppercase}
+.zdp-nav,.zdp-nav-sp{width:30px;height:30px;flex-shrink:0}
+.zdp-nav{border:1px solid #e6e1d7;border-radius:8px;background:#fff;cursor:pointer;font-size:17px;line-height:1;color:#333}
+.zdp-nav:hover:not(:disabled){border-color:var(--zdp-acc,#1a5c38);color:var(--zdp-acc,#1a5c38)}
+.zdp-nav:disabled{opacity:.3;cursor:default}
+.zdp-g{display:grid;grid-template-columns:repeat(7,36px);row-gap:2px}
+.zdp-wd{font-size:10.5px;color:#9b968c;text-align:center;padding:4px 0 6px;font-weight:600;letter-spacing:.3px}
+.zdp-wd.we{color:#c2603a}
+.zdp-d{height:34px;border:none;background:none;font:inherit;font-size:13px;color:inherit;cursor:pointer;border-radius:8px;font-variant-numeric:tabular-nums;padding:0}
+.zdp-d.we{color:#b4532a}
+.zdp-d:hover:not(:disabled){background:#e9f2ec}
+.zdp-d.t{box-shadow:inset 0 0 0 1.5px var(--zdp-acc,#1a5c38);font-weight:700}
+.zdp-d.in,.zdp-d.hv{background:#e3efe7;border-radius:0;color:#1b1b1b}
+.zdp-d.a,.zdp-d.b{background:var(--zdp-acc,#1a5c38)!important;color:#fff!important;font-weight:700;box-shadow:none}
+.zdp-d.a{border-radius:8px 0 0 8px}
+.zdp-d.b{border-radius:0 8px 8px 0}
+.zdp-d.solo,.zdp-d.a.b{border-radius:8px}
+.zdp-d.dis{color:#cdc8be!important;cursor:default;background:none!important;box-shadow:none;font-weight:400}
+.zdp-d:focus-visible,.zdp-mo:focus-visible,.zdp-btn:focus-visible{outline:2px solid var(--zdp-acc,#1a5c38);outline-offset:1px}
+.zdp-mg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;width:252px;margin-top:4px}
+.zdp-mo{height:40px;border:1px solid #ebe6dc;border-radius:9px;background:#fff;font:inherit;font-size:13px;color:inherit;cursor:pointer}
+.zdp-mo:hover:not(:disabled){border-color:var(--zdp-acc,#1a5c38)}
+.zdp-mo.t{border-color:var(--zdp-acc,#1a5c38);font-weight:700}
+.zdp-mo.a{background:var(--zdp-acc,#1a5c38);border-color:var(--zdp-acc,#1a5c38);color:#fff;font-weight:700}
+.zdp-mo:disabled{color:#cdc8be;cursor:default;border-color:#f1eee8}
+.zdp-foot{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin-top:10px;padding-top:10px;border-top:1px solid #f0ece5;flex-wrap:wrap}
+.zdp-note{font-size:11.5px;color:#7a756b;margin-right:auto;max-width:300px;line-height:1.35}
+.zdp-btn{border:none;background:#eef4f0;color:var(--zdp-acc,#1a5c38);font:inherit;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:8px;cursor:pointer}
+.zdp-btn:hover{background:#e0ece4}
+.zdp-btn.ghost{background:none;color:#6b665c}
+.zdp-btn.ghost:hover{background:#f3f0ea;color:#1b1b1b}
+.zdp-pop.sheet{position:fixed;left:0;right:0;bottom:0;top:auto!important;border-radius:16px 16px 0 0;padding:16px 16px calc(14px + env(safe-area-inset-bottom,0px));max-height:88vh;overflow:auto}
+.zdp-pop.sheet .zdp-m,.zdp-pop.sheet .zdp-mg{width:100%}
+.zdp-pop.sheet .zdp-g{grid-template-columns:repeat(7,1fr)}
+.zdp-pop.sheet .zdp-d{height:42px;font-size:15px}
+@media (prefers-reduced-motion:no-preference){.zdp-pop:not([hidden]){animation:zdpIn .14s ease-out}@keyframes zdpIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}}
+.zdp-trig{--zdp-line:var(--faint2);min-height:36px}
 </style>
 </head>
 <body>
@@ -722,6 +781,324 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
 </div>
 <button type="button" class="save-fab" id="save-fab" onclick="saveHotelInfo()">💾 Сохранить изменения</button>
 
+<script>
+/* ═══ КАЛЕНДАРЬ ZDP (01.10.2026) ═══
+   Свой календарь вместо системного <input type="date">: по-русски на любом компьютере,
+   в стиле панели и с правилами дат:
+   • период «с — по» всегда идёт вперёд: выбрал конец раньше начала — это новое начало;
+   • где прошлое не имеет смысла (замер, цены) — прошедшие дни недоступны;
+   • в отчётах и фильтрах — любые даты; месяц отчёта — не позже текущего.
+   Исходные поля остаются на месте (скрыты) и хранят значение в прежнем виде
+   (ГГГГ-ММ-ДД / ГГГГ-ММ), поэтому весь остальной код читает их как раньше.
+   Если код сам меняет .value (пресеты «7 дн», «Сбросить») — надпись обновляется. */
+(function () {
+  var MN = ['январь','февраль','март','апрель','май','июнь','июль','август','сентябрь','октябрь','ноябрь','декабрь'];
+  var MS = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  var MO = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  var WD = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  function p2(n) { return (n < 10 ? '0' : '') + n; }
+  function ymd(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); }
+  function ym(d) { return d.getFullYear() + '-' + p2(d.getMonth() + 1); }
+  function parse(s) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ''));
+    if (!m) return null;
+    var d = new Date(+m[1], +m[2] - 1, +m[3]);
+    return (d.getMonth() === +m[2] - 1) ? d : null;
+  }
+  function parseYm(s) { var m = /^(\d{4})-(\d{2})$/.exec(String(s || '')); return m ? new Date(+m[1], +m[2] - 1, 1) : null; }
+  function addD(d, n) { var x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() + n); return x; }
+  function today() { var t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); }
+  function diff(a, b) { return Math.round((b - a) / 86400000); }
+  function val(v) {
+    if (typeof v === 'function') v = v();
+    if (v === 'today') return today();
+    if (v instanceof Date) return v;
+    return parse(v);
+  }
+  function human(d, year) { return d ? (d.getDate() + ' ' + MS[d.getMonth()] + (year ? ' ' + d.getFullYear() : '')) : ''; }
+  function nightsW(n) { var a = n % 10, b = n % 100; return n + ' ' + ((a === 1 && b !== 11) ? 'ночь' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'ночи' : 'ночей'); }
+  function daysW(n) { var a = n % 10, b = n % 100; return n + ' ' + ((a === 1 && b !== 11) ? 'день' : (a >= 2 && a <= 4 && (b < 12 || b > 14)) ? 'дня' : 'дней'); }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  var ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>';
+
+  // Native setter, чтобы следить за изменением .value из чужого кода
+  var VDESC = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  function watch(inp, cb) {
+    try {
+      Object.defineProperty(inp, 'value', {
+        configurable: true,
+        get: function () { return VDESC.get.call(this); },
+        set: function (v) { VDESC.set.call(this, v); try { cb(); } catch (e) {} }
+      });
+    } catch (e) {}
+  }
+  function setVal(inp, v) {
+    VDESC.set.call(inp, v);
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+    inp.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  var pop = null, back = null, cur = null;
+  function sheet() { return window.innerWidth < 560; }
+  function ensure() {
+    if (pop) return;
+    pop = document.createElement('div'); pop.className = 'zdp-pop'; pop.hidden = true;
+    pop.setAttribute('role', 'dialog');
+    back = document.createElement('div'); back.className = 'zdp-back'; back.hidden = true;
+    document.body.appendChild(back); document.body.appendChild(pop);
+    back.addEventListener('click', close);
+    document.addEventListener('mousedown', function (e) {
+      if (!cur || sheet()) return;
+      if (pop.contains(e.target)) return;
+      for (var i = 0; i < cur.trigs.length; i++) if (cur.trigs[i].contains(e.target)) return;
+      close();
+    }, true);
+    document.addEventListener('keydown', function (e) { if (cur && e.key === 'Escape') { close(); } });
+    window.addEventListener('resize', function () { if (cur) { render(); place(); } });
+    window.addEventListener('scroll', function () { if (cur && !sheet()) place(); }, true);
+    pop.addEventListener('mouseover', function (e) {
+      if (!cur || cur.mode !== 'range' || !cur.a || cur.b) return;
+      var b = e.target.closest && e.target.closest('[data-d]');
+      var h = b && !b.disabled ? b.getAttribute('data-d') : null;
+      if (h !== cur.hover) { cur.hover = h; paintHover(); }
+    });
+    pop.addEventListener('click', onClick);
+  }
+  function place() {
+    if (!cur) return;
+    if (sheet()) { pop.classList.add('sheet'); pop.style.left = pop.style.top = ''; back.hidden = false; return; }
+    pop.classList.remove('sheet'); back.hidden = true;
+    var r = cur.anchor.getBoundingClientRect();
+    var w = pop.offsetWidth, h = pop.offsetHeight;
+    var left = r.left + window.scrollX;
+    var maxL = window.scrollX + document.documentElement.clientWidth - w - 8;
+    if (left > maxL) left = Math.max(window.scrollX + 8, maxL);
+    var top = r.bottom + window.scrollY + 6;
+    if (r.bottom + h + 12 > window.innerHeight && r.top - h - 6 > 0) top = r.top + window.scrollY - h - 6;
+    pop.style.left = left + 'px'; pop.style.top = top + 'px';
+  }
+  function open(pk, anchor, phase) {
+    ensure();
+    if (cur && cur !== pk) close();
+    cur = pk; pk.anchor = anchor || pk.trigs[0];
+    if (pk.mode === 'month') {
+      var v = parseYm(pk.ins[0].value) || today();
+      pk.year = v.getFullYear();
+    } else {
+      pk.a = parse(pk.ins[0].value); pk.b = pk.mode === 'range' ? parse(pk.ins[1].value) : null;
+      pk.phase = (phase === 'end' && pk.a) ? 'end' : 'start';
+      if (pk.phase === 'end') pk.b = null;
+      var base = (pk.phase === 'end' ? pk.a : pk.a) || val(pk.o.min) || today();
+      var mx = val(pk.o.max);
+      if (mx && base > mx) base = mx;
+      pk.view = new Date(base.getFullYear(), base.getMonth(), 1);
+      pk.hover = null;
+    }
+    pk.trigs.forEach(function (t) { t.classList.add('on'); t.setAttribute('aria-expanded', 'true'); });
+    pop.hidden = false;
+    render(); place();
+  }
+  function close() {
+    if (!cur) return;
+    cur.trigs.forEach(function (t) { t.classList.remove('on'); t.setAttribute('aria-expanded', 'false'); });
+    var pk = cur; cur = null;
+    pop.hidden = true; back.hidden = true;
+    // Начали период и бросили — откатываем, чтобы в поле не остался «полупериод»
+    pk.a = pk.b = null;
+    show(pk);
+  }
+  function months() { return (cur.mode === 'range' && !sheet() && window.innerWidth >= 640 && cur.o.months !== 1) ? 2 : 1; }
+  function dayState(d) {
+    var pk = cur, o = pk.o, mn = val(o.min), mx = val(o.max), s = { dis: false };
+    if ((mn && d < mn) || (mx && d > mx)) s.dis = true;
+    if (pk.mode === 'range' && pk.a && !pk.b && pk.phase === 'end' && !s.dis && d >= pk.a) {
+      var n = diff(pk.a, d);
+      if (o.maxNights != null && n > o.maxNights) s.dis = true;
+      if (o.minNights && n > 0 && n < o.minNights) s.dis = true;
+    }
+    return s;
+  }
+  function render() {
+    var pk = cur, o = pk.o, html = '';
+    html += '<div class="zdp-top"><div><div class="zdp-ttl">' + esc(o.title || 'Даты') + '</div><div class="zdp-hint">' + esc(hint()) + '</div></div>'
+      + '<button type="button" class="zdp-close" data-act="close" aria-label="Закрыть">✕</button></div>';
+    if (pk.mode === 'month') {
+      var mx = o.max ? (o.max === 'now' ? new Date(today().getFullYear(), today().getMonth(), 1) : parseYm(o.max)) : null;
+      var mn = o.min ? parseYm(o.min) : null;
+      html += '<div class="zdp-nav-row"><button type="button" class="zdp-nav" data-act="py"' + ((mn && pk.year <= mn.getFullYear()) ? ' disabled' : '') + ' aria-label="Предыдущий год">‹</button>'
+        + '<div class="zdp-mt">' + pk.year + '</div>'
+        + '<button type="button" class="zdp-nav" data-act="ny"' + ((mx && pk.year >= mx.getFullYear()) ? ' disabled' : '') + ' aria-label="Следующий год">›</button></div><div class="zdp-mg">';
+      var sel = parseYm(pk.ins[0].value), nowM = new Date(today().getFullYear(), today().getMonth(), 1);
+      for (var i = 0; i < 12; i++) {
+        var md = new Date(pk.year, i, 1);
+        var dis = (mx && md > mx) || (mn && md < mn);
+        var cls = 'zdp-mo' + (sel && +sel === +md ? ' a' : '') + (+md === +nowM ? ' t' : '');
+        html += '<button type="button" class="' + cls + '" data-m="' + ym(md) + '"' + (dis ? ' disabled' : '') + '>' + MO[i] + '</button>';
+      }
+      html += '</div>';
+    } else {
+      var n = months(), v = pk.view, mn2 = val(o.min), mx2 = val(o.max);
+      var prevDis = mn2 && new Date(v.getFullYear(), v.getMonth(), 0) < mn2;
+      var lastShown = new Date(v.getFullYear(), v.getMonth() + n, 1);
+      var nextDis = mx2 && lastShown > mx2;
+      html += '<div class="zdp-months">';
+      for (var k = 0; k < n; k++) {
+        var mdt = new Date(v.getFullYear(), v.getMonth() + k, 1);
+        html += '<div class="zdp-m"><div class="zdp-nav-row">'
+          + (k === 0 ? '<button type="button" class="zdp-nav" data-act="pm"' + (prevDis ? ' disabled' : '') + ' aria-label="Предыдущий месяц">‹</button>' : '<span class="zdp-nav-sp"></span>')
+          + '<div class="zdp-mt">' + MN[mdt.getMonth()] + ' ' + mdt.getFullYear() + '</div>'
+          + (k === n - 1 ? '<button type="button" class="zdp-nav" data-act="nm"' + (nextDis ? ' disabled' : '') + ' aria-label="Следующий месяц">›</button>' : '<span class="zdp-nav-sp"></span>')
+          + '</div><div class="zdp-g">';
+        WD.forEach(function (w, i) { html += '<div class="zdp-wd' + (i > 4 ? ' we' : '') + '">' + w + '</div>'; });
+        var lead = (mdt.getDay() + 6) % 7;
+        for (var e = 0; e < lead; e++) html += '<span></span>';
+        var days = new Date(mdt.getFullYear(), mdt.getMonth() + 1, 0).getDate(), td = today();
+        for (var dd = 1; dd <= days; dd++) {
+          var d = new Date(mdt.getFullYear(), mdt.getMonth(), dd), st = dayState(d), c = 'zdp-d';
+          if ((d.getDay() + 6) % 7 > 4) c += ' we';
+          if (+d === +td) c += ' t';
+          if (pk.a && +d === +pk.a) c += ' a' + ((pk.mode === 'range' && pk.b && +pk.b !== +pk.a) ? '' : ' solo');
+          if (pk.mode === 'range' && pk.b && +d === +pk.b) c += ' b';
+          if (pk.mode === 'range' && pk.a && pk.b && d > pk.a && d < pk.b) c += ' in';
+          if (st.dis) c += ' dis';
+          html += '<button type="button" class="' + c + '" data-d="' + ymd(d) + '"' + (st.dis ? ' disabled' : '') + '>' + dd + '</button>';
+        }
+        html += '</div></div>';
+      }
+      html += '</div>';
+    }
+    var foot = '';
+    if (o.clearable) foot += '<button type="button" class="zdp-btn ghost" data-act="clear">Сбросить</button>';
+    if (pk.mode === 'date' && o.todayBtn !== false && !dayState(today()).dis) foot += '<button type="button" class="zdp-btn" data-act="today">Сегодня</button>';
+    if (pk.mode === 'month' && o.max === 'now') foot += '<button type="button" class="zdp-btn" data-act="lastm">Прошлый месяц</button>';
+    if (o.note) foot = '<span class="zdp-note">' + esc(o.note) + '</span>' + foot;
+    if (foot) html += '<div class="zdp-foot">' + foot + '</div>';
+    pop.innerHTML = html;
+    paintHover();
+  }
+  function hint() {
+    var pk = cur, o = pk.o;
+    if (pk.mode === 'month') return o.hint || 'Выберите месяц';
+    if (pk.mode === 'date') return o.hint || 'Выберите дату';
+    if (!pk.a) return o.hintStart || 'Выберите начало';
+    if (!pk.b) return human(pk.a, true) + ' → ' + (o.hintEnd || 'выберите конец');
+    var n = diff(pk.a, pk.b);
+    return human(pk.a, false) + ' → ' + human(pk.b, true) + (o.minNights ? ' · ' + nightsW(n) : ' · ' + daysW(n + 1));
+  }
+  function paintHover() {
+    if (!cur || cur.mode !== 'range' || !pop) return;
+    var a = cur.a, h = cur.hover ? parse(cur.hover) : null;
+    var btns = pop.querySelectorAll('[data-d]');
+    for (var i = 0; i < btns.length; i++) {
+      var d = parse(btns[i].getAttribute('data-d'));
+      btns[i].classList.toggle('hv', !!(a && !cur.b && h && h > a && d > a && d <= h));
+    }
+    var hn = pop.querySelector('.zdp-hint');
+    if (hn) hn.textContent = (a && !cur.b && h && h > a) ? human(a, false) + ' → ' + human(h, true) + ' · ' + (cur.o.minNights ? nightsW(diff(a, h)) : daysW(diff(a, h) + 1)) : hint();
+  }
+  function onClick(e) {
+    var t = e.target.closest ? e.target.closest('button') : null;
+    if (!t || t.disabled || !cur) return;
+    var pk = cur, act = t.getAttribute('data-act');
+    if (act === 'close') return close();
+    if (act === 'pm' || act === 'nm') { pk.view = new Date(pk.view.getFullYear(), pk.view.getMonth() + (act === 'pm' ? -1 : 1), 1); render(); return; }
+    if (act === 'py' || act === 'ny') { pk.year += (act === 'py' ? -1 : 1); render(); return; }
+    if (act === 'clear') { pk.ins.forEach(function (i) { setVal(i, ''); }); close(); return; }
+    if (act === 'today') { commitDate(pk, today()); return; }
+    if (act === 'lastm') { var lm = new Date(today().getFullYear(), today().getMonth() - 1, 1); setVal(pk.ins[0], ym(lm)); close(); return; }
+    var m = t.getAttribute('data-m');
+    if (m) { setVal(pk.ins[0], m); close(); return; }
+    var ds = t.getAttribute('data-d');
+    if (!ds) return;
+    var d = parse(ds);
+    if (pk.mode === 'date') { commitDate(pk, d); return; }
+    // ── период ──
+    if (pk.phase === 'start' || !pk.a) {
+      pk.a = d; pk.b = null; pk.phase = 'end'; pk.hover = null; render(); return;
+    }
+    if (d < pk.a) { pk.a = d; pk.hover = null; render(); return; }          // раньше начала — новое начало
+    var n = diff(pk.a, d);
+    if (n === 0 && pk.o.minNights) return;                                     // для проживания нужна хотя бы ночь
+    pk.b = d;
+    var a = pk.a, b = pk.b;
+    setVal(pk.ins[0], ymd(a)); setVal(pk.ins[1], ymd(b));
+    render();
+    setTimeout(close, 160);
+  }
+  function commitDate(pk, d) { setVal(pk.ins[0], ymd(d)); close(); }
+  function show(pk) {
+    if (pk.mode === 'month') {
+      var m = parseYm(pk.ins[0].value);
+      setTrig(pk.trigs[0], m ? (MN[m.getMonth()].charAt(0).toUpperCase() + MN[m.getMonth()].slice(1) + ' ' + m.getFullYear()) : '', pk.o.placeholder || 'Месяц', pk);
+      return;
+    }
+    var a = parse(pk.ins[0].value), b = pk.mode === 'range' ? parse(pk.ins[1].value) : null;
+    if (pk.mode === 'date') { setTrig(pk.trigs[0], a ? human(a, true) : '', pk.o.placeholder || 'Дата', pk); return; }
+    if (pk.o.split) {
+      setTrig(pk.trigs[0], a ? human(a, true) : '', (pk.o.placeholders || [])[0] || 'С даты', pk);
+      setTrig(pk.trigs[1], b ? human(b, true) : '', (pk.o.placeholders || [])[1] || 'По дату', pk);
+      return;
+    }
+    var txt = '';
+    if (a && b) {
+      var sameY = a.getFullYear() === b.getFullYear();
+      txt = (+a === +b) ? human(a, true) : human(a, !sameY) + ' — ' + human(b, true);
+      if (pk.o.minNights) txt += ' · ' + nightsW(diff(a, b));
+    } else if (a) txt = 'с ' + human(a, true);
+    else if (b) txt = 'по ' + human(b, true);
+    setTrig(pk.trigs[0], txt, pk.o.placeholder || 'Любые даты', pk);
+  }
+  function setTrig(t, txt, ph, pk) {
+    var clear = pk.o.clearable && pk.ins.some(function (i) { return !!i.value; });
+    t.innerHTML = ICON + '<span class="' + (txt ? 'zdp-v' : 'zdp-ph') + '">' + esc(txt || ph) + '</span>'
+      + (clear ? '<span class="zdp-x" data-x="1" title="Сбросить" aria-label="Сбросить">✕</span>' : '');
+  }
+  function mkTrig(o) {
+    var t = document.createElement('button');
+    t.type = 'button'; t.className = 'zdp-trig' + (o.trigClass ? ' ' + o.trigClass : '');
+    t.setAttribute('aria-haspopup', 'dialog'); t.setAttribute('aria-expanded', 'false');
+    return t;
+  }
+  function make(mode, ins, o) {
+    o = o || {};
+    if (!ins[0] || (mode === 'range' && !ins[1])) return null;
+    if (ins[0]._zdp) return ins[0]._zdp;
+    var pk = { mode: mode, ins: ins, o: o, trigs: [] };
+    var hideEl = o.hide || null;
+    if (mode === 'range' && o.split) {
+      ins.forEach(function (inp, i) {
+        var t = mkTrig(o); t.classList.add('full');
+        inp.parentNode.insertBefore(t, inp); inp.style.display = 'none';
+        t.addEventListener('click', function (e) {
+          if (e.target.getAttribute && e.target.getAttribute('data-x')) { e.stopPropagation(); ins.forEach(function (x) { setVal(x, ''); }); return; }
+          if (cur === pk) { close(); return; }
+          open(pk, t, i === 1 ? 'end' : 'start');
+        });
+        pk.trigs.push(t);
+      });
+    } else {
+      var t = mkTrig(o);
+      var host = hideEl || ins[0];
+      host.parentNode.insertBefore(t, host);
+      if (hideEl) hideEl.style.display = 'none'; else ins.forEach(function (i) { i.style.display = 'none'; });
+      t.addEventListener('click', function (e) {
+        if (e.target.getAttribute && e.target.getAttribute('data-x')) { e.stopPropagation(); ins.forEach(function (x) { setVal(x, ''); }); return; }
+        if (cur === pk) { close(); return; }
+        open(pk, t, 'start');
+      });
+      pk.trigs.push(t);
+    }
+    ins.forEach(function (inp) { inp._zdp = pk; watch(inp, function () { if (cur !== pk) show(pk); }); });
+    show(pk);
+    return pk;
+  }
+  window.zdpRange = function (a, b, o) { return make('range', [a, b], o); };
+  window.zdpDate = function (a, o) { return make('date', [a], o); };
+  window.zdpMonth = function (a, o) { return make('month', [a], o); };
+  window.zdpYmd = ymd;
+})();
+
+</script>
 <script>
 const API = 'https://api.zaedem.by';
 let currentUser = null;
@@ -2392,6 +2769,7 @@ async function calApplyRange(closed){
   const from=document.getElementById('cal-from').value;
   const to=document.getElementById('cal-to').value;
   if(!from||!to){ calMsg('Укажите период (с и по)',false); return; }
+  if(to<from){ calMsg('«По дату» раньше «С даты» — выберите период заново',false); return; }
   const price=document.getElementById('cal-price').value;
   let body={from,to};
   if(closed){ body.closed=true; }
@@ -2405,6 +2783,7 @@ async function calWeekend(){
   const to=document.getElementById('cal-to').value;
   const percent=document.getElementById('cal-wknd').value;
   if(!from||!to){ calMsg('Укажите период для наценки',false); return; }
+  if(to<from){ calMsg('«По дату» раньше «С даты» — выберите период заново',false); return; }
   if(!percent){ calMsg('Укажите процент наценки',false); return; }
   try{
     const token=currentUser?.token;
@@ -2418,6 +2797,19 @@ async function calWeekend(){
     calLoad();
   }catch(e){ calMsg(e.message,false); }
 }
+
+// КАЛЕНДАРЬ ПЕРИОДА (01.10): свой вместо системного. Цены и закрытие — только с сегодняшнего
+// дня (прошлое менять бессмысленно), «по дату» не раньше «с даты», один день — двойной клик.
+function initCabCalendars(){
+  if(window._cabCalOk) return;
+  var a=document.getElementById('cal-from'), b=document.getElementById('cal-to');
+  if(!a||!b||typeof zdpRange!=='function') return;
+  window._cabCalOk=true;
+  zdpRange(a,b,{split:true, min:'today', minNights:0, maxNights:730, title:'Период цен',
+    placeholders:['С даты','По дату'], hintStart:'Выберите первый день', hintEnd:'выберите последний день',
+    note:'Один день — нажмите его дважды'});
+}
+document.addEventListener('DOMContentLoaded', initCabCalendars);
 
 function calMsg(text,ok){
   const m=document.getElementById('cal-msg');
@@ -2441,7 +2833,7 @@ function readyRender(){
   var items=[
     {ok: !!(String(h.name_ru||'').trim() && h.city_id), t:'Название и город', f:'h-city'},
     {ok: h.lat!=null && h.lng!=null && h.lat!=='' && h.lng!=='', t:'Точка на карте', f:'h-coords'},
-    {ok: String(h.description_ru||'').trim().length>=300, t:'Описание от 300 знаков', hint:(_ai.enabled?'поможет ИИ-помощник':''), f:'h-desc'},
+    {ok: String(h.description_ru||'').trim().length>=300, t:'Описание от 300 знаков', hint:(_ai.enabled?'поможет ✨ помощник':''), f:(_ai.enabled?'ai-notes':'h-desc')},
     {ok: ph==null?null:ph.length>=5, t:'Фото: 5 и больше', hint:(ph?('сейчас '+ph.length):''), f:'ph-zone'},
     {ok: rooms==null?null:rooms.some(function(r){return parseFloat(r.base_price)>0;}), t:'Номер с ценой', f:'rooms-list'},
     {ok: !!String(h.phone||'').trim(), t:'Телефон объекта', f:'h-phone'},
@@ -2753,6 +3145,11 @@ async function aiStatus(){
     var d=await r.json();
     _ai.enabled=!!d.enabled; _ai.left=(d.left!=null)?d.left:null;
     var box=document.getElementById('ai-box'); if(box) box.style.display=_ai.enabled?'':'none';
+    // Причину, почему помощник выключен, сервер присылает только администратору
+    if(box && !_ai.enabled && d.reason){
+      box.style.display='';
+      box.innerHTML='<div class="ai-h">✨ Помощник сейчас выключен</div><div class="ai-sub">'+esc(d.reason)+'. Партнёры этот блок не видят — сообщение только для администратора.</div>';
+    }
     var mic=document.getElementById('ai-mic'); if(mic && !(window.SpeechRecognition||window.webkitSpeechRecognition)) mic.style.display='none';
     aiLeft(); readyRender();
   }catch(e){}
