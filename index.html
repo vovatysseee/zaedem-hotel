@@ -257,6 +257,15 @@ tr:hover td{background:var(--surface)}
 .rm-photo-star{position:absolute;left:3px;top:3px;background:rgba(255,255,255,.92);border:none;border-radius:4px;width:22px;height:20px;cursor:pointer;font-size:11px}
 .rm-btn-del{background:none;color:var(--red);margin-right:auto}
 
+/* 04.10 (порция 23): плашка «Установить как приложение» — на телефоне, над нижним меню */
+#cab-pwa{position:fixed;left:10px;right:10px;bottom:-160px;z-index:80;background:#0F2D1D;color:#fff;border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 12px 40px rgba(0,0,0,.3);transition:bottom .35s ease;max-width:480px;margin:0 auto}
+#cab-pwa.show{bottom:calc(74px + env(safe-area-inset-bottom))}
+#cab-pwa img{width:40px;height:40px;border-radius:10px;flex-shrink:0}
+#cab-pwa .cp-t{font-size:13px;font-weight:700;line-height:1.3}
+#cab-pwa .cp-s{font-size:12px;color:#cfe3d6;margin-top:3px;line-height:1.35}
+#cab-pwa button{font-family:inherit;border:none;cursor:pointer;border-radius:10px;padding:9px 12px;font-size:12.5px;font-weight:700;flex-shrink:0}
+#cab-pwa .cp-inst{background:#c9f135;color:#0F2D1D}
+#cab-pwa .cp-x{background:none;color:#cfe3d6;padding:9px 6px;font-size:15px}
 @media (max-width:860px){
   body{display:block}
   .sidebar{display:none}
@@ -783,6 +792,7 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
     <div class="ms-user" id="ms-user"></div>
     <button type="button" onclick="moreClose();showPage('profile')">⚙️ Профиль и реквизиты</button>
     <button type="button" onclick="moreClose();showPage('ical')">📅 Синхронизация календарей (iCal)</button>
+    <button type="button" id="ms-pwa" onclick="moreClose();cabPwaShow()">📲 Установить как приложение</button>
     <button type="button" onclick="moreClose();doLogout()" style="color:var(--red)">🚪 Выйти</button>
   </div>
 </div>
@@ -1283,6 +1293,7 @@ function initApp() {
   // объект — сразу (myHotelId нужен календарю); на «Моём отеле» его уже загрузил showPage
   if (savedPage !== 'hotel') loadHotelData();
   loadRequisites(false);
+  try { cabPwaMaybe(); } catch (e) {}   // 04.10 (порция 23): подсказка «Установить как приложение» на телефоне
 }
 
 // Вход по токену из адреса (админ заходит в кабинет владельца).
@@ -3253,11 +3264,86 @@ function aiMic(){
 }
 
 // ══════════════════════════════════════════════════════
+// 04.10 (порция 23) — «УСТАНОВИТЬ КАК ПРИЛОЖЕНИЕ» НА ТЕЛЕФОНЕ
+// Кабинет ставится на экран с порции 10 (manifest, иконки), но хозяин об этом не знал.
+// Теперь после входа с телефона через 4 с внизу появляется плашка:
+//  • Android (Chrome) — кнопка «Установить», если браузер её разрешил; иначе подсказка «⋮ → Установить»;
+//  • iPhone/iPad — подсказка «Поделиться → На экран „Домой“» (Apple не даёт кнопку установки);
+//  • встроенный браузер Instagram/Telegram/Facebook — «откройте в Safari/Chrome».
+// ✕ — не показывать 14 дней. Уже установлен (открыт с иконки) — плашки нет.
+// В меню «Ещё» — пункт «📲 Установить как приложение», чтобы открыть подсказку в любой момент.
+// На компьютере ничего не появляется.
+// ══════════════════════════════════════════════════════
+var _cabPwaDeferred = null;
+var CAB_PWA_KEY = 'cab_pwa_dismissed', CAB_PWA_DAYS = 14;
+function cabPwaStandalone(){
+  try { return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) { return false; }
+}
+function cabPwaIOS(){ var ua = navigator.userAgent || ''; return /iP(hone|ad|od)/.test(ua) || (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1); }
+function cabPwaAndroid(){ return /Android/i.test(navigator.userAgent || ''); }
+function cabPwaInApp(){ return /Instagram|FBAN|FBAV|Telegram|VKClient|; wv\)/i.test(navigator.userAgent || ''); }
+function cabPwaPhone(){ return window.innerWidth <= 860 && (cabPwaIOS() || cabPwaAndroid() || ('ontouchstart' in window)); }
+function cabPwaHide(){
+  var t = document.getElementById('cab-pwa'); if (!t) return;
+  t.classList.remove('show'); setTimeout(function(){ if (t.parentNode) t.parentNode.removeChild(t); }, 350);
+}
+function cabPwaRender(t){
+  var sub, btn = '';
+  if (cabPwaIOS()) {
+    sub = cabPwaInApp() ? 'Откройте кабинет в Safari, затем «Поделиться» → «На экран „Домой“»'
+                        : 'Нажмите «Поделиться» (в новых iOS — «…» → «Поделиться») → «На экран „Домой“»';
+  } else if (_cabPwaDeferred) {
+    sub = 'Брони и календарь — с главного экрана, в одно касание';
+    btn = '<button type="button" class="cp-inst" id="cab-pwa-inst">Установить</button>';
+  } else {
+    sub = cabPwaInApp() ? 'Откройте кабинет в Chrome, затем ⋮ → «Установить приложение»'
+                        : 'Меню ⋮ браузера → «Установить приложение» или «Добавить на главный экран»';
+  }
+  t.innerHTML = '<img src="icon-192.png" alt="">'
+    + '<div style="flex:1;min-width:0"><div class="cp-t">Кабинет — как приложение</div><div class="cp-s">' + sub + '</div></div>'
+    + btn + '<button type="button" class="cp-x" id="cab-pwa-x" aria-label="Закрыть">✕</button>';
+  var ib = document.getElementById('cab-pwa-inst');
+  if (ib) ib.onclick = function(){
+    var d = _cabPwaDeferred; _cabPwaDeferred = null; cabPwaHide();
+    if (d) { try { d.prompt(); } catch (e) {} }
+  };
+  document.getElementById('cab-pwa-x').onclick = function(){
+    cabPwaHide();
+    try { localStorage.setItem(CAB_PWA_KEY, String(Date.now())); } catch (e) {}
+  };
+}
+function cabPwaShow(){
+  if (cabPwaStandalone()) { try { showToast('Кабинет уже открыт как приложение'); } catch (e) {} return; }
+  var t = document.getElementById('cab-pwa');
+  if (!t) { t = document.createElement('div'); t.id = 'cab-pwa'; document.body.appendChild(t); }
+  cabPwaRender(t);
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ t.classList.add('show'); }); });
+}
+function cabPwaMaybe(){
+  if (cabPwaStandalone() || !cabPwaPhone()) return;
+  try {
+    var d = parseInt(localStorage.getItem(CAB_PWA_KEY) || '0', 10);
+    if (d && Date.now() - d < CAB_PWA_DAYS * 86400000) return;   // закрыли недавно — не пристаём
+  } catch (e) {}
+  setTimeout(function(){
+    var app = document.getElementById('app');
+    if (!app || app.style.display === 'none' || cabPwaStandalone()) return;   // вышли из кабинета за эти секунды
+    cabPwaShow();
+  }, 4000);
+}
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault(); _cabPwaDeferred = e;
+  var t = document.getElementById('cab-pwa'); if (t) cabPwaRender(t);   // плашка уже на экране — появится кнопка «Установить»
+});
+window.addEventListener('appinstalled', function(){ _cabPwaDeferred = null; cabPwaHide(); });
+
+// ══════════════════════════════════════════════════════
 // 27.09 — ТЕЛЕФОН: меню «Ещё»
 // ══════════════════════════════════════════════════════
 function moreOpen(){
   var s=document.getElementById('more-sheet'); if(!s) return;
   var u=document.getElementById('ms-user'); if(u&&currentUser){ var nm=currentUser.name||'', em=currentUser.email||''; u.textContent=(nm&&nm!==em)?(nm+' · '+em):em; }
+  try{ var pi=document.getElementById('ms-pwa'); if(pi) pi.style.display=cabPwaStandalone()?'none':''; }catch(e){}   // 04.10: уже установлен — пункт не нужен
   s.classList.add('open'); document.documentElement.classList.add('zb-lock');
 }
 function moreClose(){
