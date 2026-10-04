@@ -151,6 +151,7 @@ tr:hover td{background:var(--surface)}
 /* TOAST */
 .toast{position:fixed;bottom:24px;right:24px;background:var(--green);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:200;transform:translateY(20px);opacity:0;transition:.3s}
 .toast.show{transform:translateY(0);opacity:1}
+.toast.err{background:#dc2626}
 /* Модальное окно номера */
 .room-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center;padding:16px}
 .room-modal-overlay.open{display:flex}
@@ -497,7 +498,7 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
       <!-- BOOKINGS -->
       <div class="page" id="page-bookings">
         <div class="section">
-          <div class="sec-head"><span class="sec-title">Мои брони</span></div>
+          <div class="sec-head"><span class="sec-title">Мои брони</span><button id="bk-refresh" onclick="cabRefreshBookings(this)" style="background:#fff;color:var(--green);border:1px solid var(--green);padding:7px 14px;border-radius:10px;font-size:12.5px;font-weight:700;cursor:pointer;font-family:inherit">↻ Обновить</button></div>
           <div id="bookings-table"><div class="loading"><div class="spin"></div><br>Загрузка...</div></div>
         </div>
       </div>
@@ -1378,6 +1379,7 @@ function showPage(name, el) {
 
 // ── LOAD BOOKINGS ──
 async function loadMyBookings() {
+  var ok = false;   // 04.10: итог для кнопки «↻ Обновить» и для таблицы «Мои брони»
   try {
     const token = currentUser?.token;
     const headers = {'Content-Type':'application/json'};
@@ -1390,13 +1392,47 @@ async function loadMyBookings() {
       myBookings = [];
     } else {
       myBookings = (d.bookings || []);
+      ok = true;
     }
     updateStats();
     renderDashboard();
     try{ bellCollect(); }catch(e){}
+    // 04.10: открытая вкладка «Мои брони» обновляется сама (опрос раз в 30 с ниже). Раньше опрос
+    // подтягивал брони, но таблица не перерисовывалась: новая бронь появлялась, только если уйти
+    // на другую вкладку и вернуться. При сбое связи таблицу не трогаем — остаётся прежний список.
+    try{ if(ok) bookingsRefreshOpen(false); }catch(e){}
   } catch(e) {
     console.warn('loadMyBookings error:', e.message);
     myBookings = [];
+  }
+  return ok;
+}
+// 04.10: перерисовать «Мои брони», если вкладка открыта и брони изменились (новая, отмена, анкета)
+var _bkSig = '';
+function bookingsSig(list){
+  try{ return (list||[]).map(function(b){ return [b.booking_num,b.status,b.contract_filled_at||'',b.contract_has_foreign||'',b.updated_at||'',b.cancelled_at||''].join('|'); }).join(';'); }
+  catch(e){ return String(Date.now()); }
+}
+function bookingsRefreshOpen(force){
+  var pg = document.getElementById('page-bookings');
+  if (!pg || !pg.classList.contains('on')) return;
+  if (!force && bookingsSig(myBookings) === _bkSig) return;
+  renderBookingsTable(myBookings);
+}
+// 04.10: кнопка «↻ Обновить» на «Мои брони» — с видимым откликом, как в админке
+async function cabRefreshBookings(btn){
+  if (btn && btn.dataset.busy === '1') return;
+  var txt = btn ? btn.textContent : '';
+  if (btn) { btn.dataset.busy = '1'; btn.disabled = true; btn.style.opacity = '.6'; btn.textContent = '↻ Обновляю…'; }
+  var ok = false;
+  try { ok = (await loadMyBookings()) === true; } catch(e) { ok = false; }
+  finally { if (btn) { btn.disabled = false; btn.style.opacity = ''; btn.textContent = txt || '↻ Обновить'; btn.dataset.busy = ''; } }
+  if (ok) {
+    bookingsRefreshOpen(true);
+    var n = new Date();
+    showToast('✓ Брони обновлены — ' + String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'));
+  } else {
+    showToast('Не удалось обновить брони — проверьте интернет', true);
   }
 }
 
@@ -1513,6 +1549,7 @@ function renderDashboard() {
 }
 
 function renderBookingsTable(bookings) {
+  try{ _bkSig = bookingsSig(bookings); }catch(e){}   // 04.10: что сейчас нарисовано — для автообновления
   document.getElementById('bookings-table').innerHTML = bookings.length ? `
     <table class="rt">
       <tr><th>Бронь</th><th>Гость</th><th>Телефон</th><th>Отель</th><th>Заезд</th><th>Выезд</th><th>Ночей</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr>
@@ -1949,10 +1986,10 @@ function statusBadge(s) {
   return `<span class="badge ${map[s]||'badge-gray'}">${labels[s]||s}</span>`;
 }
 
-function showToast(msg) {
+function showToast(msg, err) {   // 04.10: err — красная всплывашка (не получилось)
   const t = document.getElementById('toast');
   t.textContent = msg;
-  t.className = 'toast show';
+  t.className = 'toast show' + (err ? ' err' : '');
   setTimeout(() => t.className = 'toast', 3000);
 }
 
