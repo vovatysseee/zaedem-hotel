@@ -196,7 +196,11 @@ table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-
 /* ══════════════════════════════════════════════════════
    27.09 — КАБИНЕТ НА ТЕЛЕФОНЕ, ФОТО ФАЙЛАМИ, РЕКВИЗИТЫ, ИИ
    ══════════════════════════════════════════════════════ */
-.bnav,.more-sheet,.save-fab{display:none}
+.bnav,.more-sheet{display:none}
+/* 05.10: кнопка «Сохранить изменения» объекта — одна, в конце формы, без прилипания */
+.hotel-save-row{margin-top:20px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.hotel-save-row #hotel-save-msg{align-self:stretch}
+.hotel-save-btn{background:var(--green);color:#c9f135;border:none;padding:11px 22px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px}
 /* Скрытая всплывашка перехватывала нажатия: невидимая, но лежала поверх кнопок */
 .toast{pointer-events:none}
 /* Готовность объявления */
@@ -313,9 +317,8 @@ table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-
   .more-sheet .ms-user{font-size:12px;color:var(--muted);padding:0 6px 10px;border-bottom:1px solid var(--faint);margin-bottom:6px}
   .more-sheet button{display:flex;align-items:center;gap:12px;width:100%;padding:14px 8px;border:none;background:none;font-size:15px;font-family:inherit;color:var(--ink);border-radius:10px;text-align:left}
   .more-sheet button:active{background:var(--surface)}
-  .save-fab{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:55;justify-content:center;align-items:center;gap:6px;background:var(--green);color:#c9f135;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;box-shadow:0 6px 20px rgba(26,92,56,.35)}
-  body.pg-hotel .save-fab{display:flex}
-  body.pg-hotel .content{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  /* 05.10: плавающая кнопка «Сохранить» убрана; на телефоне кнопка в конце формы — во всю ширину */
+  .hotel-save-btn{align-self:stretch;justify-content:center;padding:14px;font-size:15px;border-radius:12px}
   .toast{left:12px;right:12px;bottom:calc(132px + env(safe-area-inset-bottom));text-align:center}
   #bell-drop{position:fixed!important;left:8px;right:8px;top:calc(56px + env(safe-area-inset-top))!important;width:auto!important;max-height:70vh!important}
   /* таблицы броней → карточки */
@@ -345,7 +348,7 @@ table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-
   #cal-month-label{min-width:0!important;flex:1}
   #page-calendar [style*="margin-left:auto;font-size:12px"]{flex-basis:100%;margin-left:0!important}
   /* до входа нижнего меню и кнопки нет: класс pg-… появляется только в кабинете */
-  body:not([class*="pg-"]) .bnav,body:not([class*="pg-"]) .save-fab{display:none!important}
+  body:not([class*="pg-"]) .bnav{display:none!important}
   .rm-thumb{width:80px;height:60px}
 }
 html.zb-lock,html.zb-lock body{overflow:hidden}
@@ -617,7 +620,7 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
         <div class="section">
           <div class="sec-head">
             <span class="sec-title">Информация об отеле</span>
-            <button onclick="saveHotelInfo()" style="background:var(--green);color:#c9f135;border:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">💾 Сохранить изменения</button>
+            <!-- 05.10: кнопка «Сохранить изменения» перенесена в конец формы — одна вместо двух -->
           </div>
           <div style="padding:1.2rem">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -736,7 +739,12 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
               <textarea id="h-cancel" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Например: бесплатная отмена за 3 дня до заезда · позже удерживается стоимость 1 ночи · при неявке — без возврата"></textarea>
               <div style="font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5">Выбранное правило действует автоматически: гость по ссылке из ваучера сможет отменить бронь только пока правило это разрешает. «Своя формулировка» — только текст в ваучере, гость сможет отменять до дня заезда.</div>
             </div>
-            <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+            <!-- 05.10: единственная кнопка сохранения — в конце формы, обычная, не прилипает к экрану.
+                 Раньше была вверху и плавающая на телефоне; сохранение то же — saveHotelInfo() -->
+            <div class="hotel-save-row">
+              <button type="button" class="hotel-save-btn" id="hotel-save-btn" onclick="saveHotelInfo()">💾 Сохранить изменения</button>
+              <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+            </div>
           </div>
         </div>
 
@@ -817,7 +825,6 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
     <button type="button" onclick="moreClose();doLogout()" style="color:var(--red)">🚪 Выйти</button>
   </div>
 </div>
-<button type="button" class="save-fab" id="save-fab" onclick="saveHotelInfo()">💾 Сохранить изменения</button>
 
 <script>
 /* ═══ КАЛЕНДАРЬ ZDP (01.10.2026) ═══
@@ -1444,7 +1451,7 @@ function showPage(name, el) {
   if (name === 'calendar') calInit();
   if (name === 'profile') renderProfile(); // раньше вкладка «Профиль» оставалась пустой — рендер не вызывался
   if (name === 'profile') { try { tgLoad(); } catch (e) {} }   // 05.10: блок «Уведомления в Telegram»
-  // Телефон: подсветка нижнего меню, класс страницы (кнопка «Сохранить» у объекта), прокрутка наверх
+  // Телефон: подсветка нижнего меню, класс страницы, прокрутка наверх (05.10: плавающей кнопки «Сохранить» больше нет)
   try {
     document.body.className = (document.body.className.replace(/\bpg-\S+/g, '') + ' pg-' + name).trim();
     document.querySelectorAll('.bnav button[data-p]').forEach(function(b){
