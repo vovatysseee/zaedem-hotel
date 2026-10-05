@@ -141,6 +141,19 @@ tr:hover td{background:var(--surface)}
 .ical-url{background:#fff;border:1px solid var(--faint);border-radius:8px;padding:8px 12px;font-size:11px;font-family:monospace;color:var(--ink);word-break:break-all;margin-bottom:10px}
 .copy-btn{padding:7px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700}
 .copy-btn:disabled{opacity:.55}
+/* 05.10: блок «Уведомления в Telegram» (Профиль) и подсветка брони, открытой по ссылке из Telegram */
+.tg-txt{font-size:13px;color:var(--ink);line-height:1.55}
+.tg-sub{font-size:12px;color:var(--muted);line-height:1.5;margin-top:6px}
+.tg-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:14px}
+.tg-btn{padding:10px 18px;background:var(--green);color:#fff;border:none;border-radius:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;text-decoration:none;display:inline-block}
+.tg-btn:disabled{opacity:.55}
+.tg-btn.out{background:#fff;color:var(--green);border:1.5px solid var(--green)}
+.tg-btn.red{background:#fff;color:var(--red);border:1.5px solid var(--red)}
+.tg-ok{display:inline-block;background:var(--green-pale);color:var(--green);font-weight:700;font-size:12.5px;padding:4px 10px;border-radius:7px}
+.tg-wait{margin-top:14px;padding:12px 14px;border:1px dashed rgba(26,92,56,.35);border-radius:10px;background:var(--green-pale);font-size:12.5px;line-height:1.55;color:var(--ink)}
+.tg-err{margin-top:10px;font-size:12px;font-weight:600;color:var(--red)}
+table.rt tr.bk-focus td{background:#fff7d6}
+table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-shadow:0 0 0 2px rgba(26,92,56,.18)}
 .pw-input{width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink)}
 .pw-input:focus{outline:none;border-color:var(--green)}
 
@@ -764,6 +777,14 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
 
       <!-- PROFILE -->
       <div class="page" id="page-profile">
+        <!-- 05.10: уведомления о бронях в Telegram (API: /api/partner/telegram, бэкенд PR #5).
+             Отдельной секцией: содержимое «Профиля партнёра» перерисовывается целиком. -->
+        <div class="section" id="tg-section">
+          <div class="sec-head"><span class="sec-title">🔔 Уведомления в Telegram</span></div>
+          <div style="padding:1.2rem" id="tg-box">
+            <div class="loading"><div class="spin"></div><br>Загрузка...</div>
+          </div>
+        </div>
         <div class="section">
           <div class="sec-head"><span class="sec-title">Профиль партнёра</span></div>
           <div style="padding:1.2rem" id="profile-content">
@@ -1288,12 +1309,57 @@ function initApp() {
   showPage(savedPage);
   document.documentElement.classList.remove('cab-boot');
   // Load data
-  loadMyBookings();
+  // 05.10: когда брони загрузились — открыть бронь из ссылки Telegram (#booking=<номер>), если она есть
+  loadMyBookings().then(function(){ try { tgOpenPendingBooking(); } catch (e) {} });
   renderProfile();
   // объект — сразу (myHotelId нужен календарю); на «Моём отеле» его уже загрузил showPage
   if (savedPage !== 'hotel') loadHotelData();
   loadRequisites(false);
   try { cabPwaMaybe(); } catch (e) {}   // 04.10 (порция 23): подсказка «Установить как приложение» на телефоне
+}
+
+// 05.10: ссылка «Открыть в кабинете» из Telegram — hotel.zaedem.by/#booking=<номер>.
+// Решётку кабинет использует для разделов (#bookings, #hotel), поэтому номер забираем
+// сразу при загрузке, до входа: запоминаем на 30 минут во вкладке и убираем из адреса
+// (иначе раздел «booking=…» не нашёлся бы, а F5 открывал бы бронь снова). После входа
+// и загрузки броней tgOpenPendingBooking() откроет «Мои брони» и подсветит её.
+// Своей брони в списке нет (чужая, отменена давно, старше 100 последних) — просто кабинет.
+var TG_BK_KEY = 'cab_open_bk';
+var _bkFocus = '';
+function tgBkFromHash() {
+  var m = /^#booking=([A-Za-z0-9-]{4,40})$/.exec(location.hash || '');
+  if (!m) return null;
+  var num = m[1].toUpperCase();
+  try { sessionStorage.setItem(TG_BK_KEY, JSON.stringify({ num: num, t: Date.now() })); } catch (e) {}
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  return num;
+}
+tgBkFromHash();
+// Кабинет уже открыт в этой вкладке и ссылку открыли в ней же
+window.addEventListener('hashchange', function () {
+  if (tgBkFromHash() && currentUser) { try { tgOpenPendingBooking(); } catch (e) {} }
+});
+function tgOpenPendingBooking() {
+  var p = null;
+  try { p = JSON.parse(sessionStorage.getItem(TG_BK_KEY) || 'null'); sessionStorage.removeItem(TG_BK_KEY); } catch (e) {}
+  if (!p || !p.num || Date.now() - (p.t || 0) > 30 * 60 * 1000) return;
+  var b = (myBookings || []).filter(function (x) { return String(x.booking_num || '').toUpperCase() === p.num; })[0];
+  if (!b) return;
+  _bkFocus = b.booking_num;
+  showPage('bookings');
+  setTimeout(function () {
+    var tr = tgFocusRow();
+    if (tr && tr.scrollIntoView) tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, 60);
+  // Подсветка — на 20 секунд, дальше таблица обычная
+  setTimeout(function () { _bkFocus = ''; var tr = tgFocusRow(true); if (tr) tr.classList.remove('bk-focus'); }, 20000);
+}
+function tgFocusRow(any) {
+  var rows = document.querySelectorAll('#bookings-table tr[data-bk]');
+  for (var i = 0; i < rows.length; i++) {
+    if (any ? rows[i].classList.contains('bk-focus') : rows[i].getAttribute('data-bk') === _bkFocus) return rows[i];
+  }
+  return null;
 }
 
 // Вход по токену из адреса (админ заходит в кабинет владельца).
@@ -1377,6 +1443,7 @@ function showPage(name, el) {
   if (name === 'hotel') { try{ loadCityOptions(null); }catch(e){} loadHotelData(); }
   if (name === 'calendar') calInit();
   if (name === 'profile') renderProfile(); // раньше вкладка «Профиль» оставалась пустой — рендер не вызывался
+  if (name === 'profile') { try { tgLoad(); } catch (e) {} }   // 05.10: блок «Уведомления в Telegram»
   // Телефон: подсветка нижнего меню, класс страницы (кнопка «Сохранить» у объекта), прокрутка наверх
   try {
     document.body.className = (document.body.className.replace(/\bpg-\S+/g, '') + ' pg-' + name).trim();
@@ -1582,7 +1649,7 @@ function renderBookingsTable(bookings) {
                     || (!!citizen && citizen !== 'Беларусь' && citizen !== 'BY');
         var nGuests  = parseInt(b.contract_guests_count || 0, 10) || 0;
         return `
-        <tr${foreign?' style="background:#fff5f5"':''}>
+        <tr data-bk="${esc(b.booking_num)}"${(_bkFocus && b.booking_num===_bkFocus)?' class="bk-focus"':''}${foreign?' style="background:#fff5f5"':''}>
           <td data-l="Бронь"><b style="color:var(--green)">${esc(b.booking_num)}</b></td>
           <td data-l="Гость"><div>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${
             filled?`<br><span style="display:inline-block;margin-top:3px;background:#e8f5e9;color:#1a5c38;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">✅ данные загружены${nGuests?' · '+nGuests+' чел.':''}</span>`:''
@@ -1810,6 +1877,145 @@ async function mvdAnketa(bookingNum){
       +'по месту пребывания уточните в органе внутренних дел по месту нахождения объекта — '
       +'требования зависят от гражданства и основания въезда.</div>');
   }catch(e){ alert(e.message||'Сервис недоступен'); }
+}
+
+// ══════════════════════════════════════════════════════
+// 05.10: УВЕДОМЛЕНИЯ В TELEGRAM
+// ══════════════════════════════════════════════════════
+// Бэкенд (PR #5): GET /api/partner/telegram — состояние; POST …/link — одноразовая ссылка
+// t.me/<бот>?start=<токен> на 30 минут; DELETE — отключить. Бот присылает только номер брони,
+// объект, даты, число гостей и сумму — данные гостя остаются в кабинете.
+// На сервере выключено ({enabled:false}) или бэкенд ещё без этих ручек (404) — спокойная
+// надпись без кнопок. Ссылку открываем в новой вкладке сразу по нажатию (иначе телефон
+// заблокирует окно), а пока хозяин жмёт «Старт» в Telegram — раз в 4 секунды спрашиваем
+// состояние, до «Подключено» или конца срока ссылки.
+var _tg = { st: null, err: '', busy: false, link: null, poll: null };
+function tgRender() {
+  var box = document.getElementById('tg-box');
+  if (!box) return;
+  var s = _tg.st, h = '';
+  var errLine = _tg.err ? '<div class="tg-err">' + esc(_tg.err) + '</div>' : '';
+  if (!s) {
+    box.innerHTML = '<div class="tg-txt">' + esc(_tg.err || 'Загрузка…') + '</div>'
+      + (_tg.err ? '<div class="tg-row"><button type="button" class="tg-btn out" onclick="tgLoad()">Повторить</button></div>' : '');
+    return;
+  }
+  if (s.enabled === false) {
+    box.innerHTML = '<div class="tg-txt">Уведомления в Telegram пока не включены.</div>'
+      + '<div class="tg-sub">Когда мы их запустим, здесь появится кнопка «Подключить Telegram»: новые брони, отмены и напоминание о заезде будут приходить прямо в мессенджер.</div>';
+    return;
+  }
+  var what = '<div class="tg-sub">Приходят новые брони, отмены и напоминание о заезде накануне в 18:00. '
+    + 'В сообщении — номер брони, объект, даты, число гостей и сумма; данные гостя смотрите здесь, в кабинете.</div>';
+  if (s.linked) {
+    var since = s.linked_at ? new Date(s.linked_at) : null;
+    h = '<div><span class="tg-ok">✅ Подключено</span></div>'
+      + '<div class="tg-sub">' + (since && !isNaN(since) ? 'С ' + esc(since.toLocaleDateString('ru-RU')) + '. ' : '')
+      + (s.bot_username ? 'Сообщения присылает бот @' + esc(s.bot_username) + '.' : '') + '</div>'
+      + what
+      + '<div class="tg-row"><button type="button" class="tg-btn red" id="tg-off" onclick="tgDisconnect()"' + (_tg.busy ? ' disabled' : '') + '>Отключить</button></div>';
+  } else {
+    h = '<div class="tg-txt">Получайте уведомления о бронях в Telegram.</div>' + what
+      + '<div class="tg-row"><button type="button" class="tg-btn" id="tg-on" onclick="tgConnect()"' + (_tg.busy ? ' disabled' : '') + '>'
+      + (_tg.busy ? 'Готовлю ссылку…' : (_tg.link ? 'Получить новую ссылку' : 'Подключить Telegram')) + '</button></div>';
+    if (_tg.link) {
+      var till = new Date(_tg.link.until);
+      h += '<div class="tg-wait">Откройте Telegram и нажмите <b>«Старт»</b> в чате с ботом. Ссылка действует 30 минут'
+        + (isNaN(till) ? '' : ' (до ' + String(till.getHours()).padStart(2, '0') + ':' + String(till.getMinutes()).padStart(2, '0') + ')')
+        + '. Как только бот ответит, здесь появится «Подключено».'
+        + '<div class="tg-row"><a class="tg-btn" href="' + safeUrl(_tg.link.url) + '" target="_blank" rel="noopener noreferrer">Открыть Telegram</a>'
+        + '<button type="button" class="tg-btn out" onclick="tgPollTick(true)">Проверить</button></div></div>';
+    }
+  }
+  box.innerHTML = h + errLine;
+}
+async function tgLoad() {
+  if (!currentUser) return null;
+  if (!_tg.st) tgRender();
+  try {
+    var r = await fetch(API + '/api/partner/telegram', { headers: authHeaders() });
+    var d = null; try { d = await r.json(); } catch (e) {}
+    if (r.status === 404) { _tg.st = { enabled: false, linked: false }; _tg.err = ''; }   // бэкенд ещё без этих ручек
+    else if (r.status === 401) { _tg.err = 'Сессия истекла — обновите страницу и войдите заново.'; }
+    else if (!r.ok || !d || typeof d.enabled !== 'boolean') { _tg.err = 'Не удалось узнать состояние уведомлений. Попробуйте позже.'; }
+    else { _tg.st = d; _tg.err = ''; }
+  } catch (e) { _tg.err = 'Нет связи с сервером. Проверьте интернет.'; }
+  tgRender();
+  return _tg.st;
+}
+async function tgConnect() {
+  if (_tg.busy) return;
+  _tg.busy = true; _tg.err = ''; tgRender();
+  // Вкладку открываем сразу по нажатию: открытую после ответа сервера телефон считает всплывающим окном
+  var w = null; try { w = window.open('', '_blank'); } catch (e) {}
+  var ok = false;
+  try {
+    var r = await fetch(API + '/api/partner/telegram/link', { method: 'POST', headers: authHeaders(true) });
+    var d = null; try { d = await r.json(); } catch (e) {}
+    if (r.ok && d && /^https:\/\/t\.me\/[A-Za-z0-9_]{3,64}\?start=[A-Za-z0-9_-]{8,64}$/.test(d.url || '')) {
+      ok = true;
+      var until = Date.parse(d.expires_at || '');
+      _tg.link = { url: d.url, until: isNaN(until) ? Date.now() + 30 * 60 * 1000 : until };
+      if (w) { try { w.opener = null; w.location.href = d.url; } catch (e) {} }
+      tgPollStart();
+    } else if (r.status === 503 && d && d.enabled === false) {
+      _tg.st = { enabled: false, linked: false };
+    } else if (r.status === 429) {
+      _tg.err = 'Слишком много попыток. Подождите несколько минут.';
+    } else if (r.status === 401) {
+      _tg.err = 'Сессия истекла — обновите страницу и войдите заново.';
+    } else {
+      _tg.err = (d && d.error) || 'Не удалось получить ссылку. Попробуйте ещё раз.';
+    }
+  } catch (e) {
+    _tg.err = 'Нет связи с сервером. Проверьте интернет.';
+  }
+  if (!ok && w) { try { w.close(); } catch (e) {} }
+  _tg.busy = false;
+  tgRender();
+}
+function tgPollStart() { tgPollStop(); _tg.poll = setInterval(function () { tgPollTick(false); }, 4000); }
+function tgPollStop() { if (_tg.poll) { clearInterval(_tg.poll); _tg.poll = null; } }
+async function tgPollTick(manual) {
+  if (!_tg.link || !currentUser) { tgPollStop(); return; }
+  if (Date.now() > _tg.link.until) {
+    tgPollStop(); _tg.link = null;
+    _tg.err = 'Срок ссылки истёк. Нажмите «Подключить Telegram» ещё раз.';
+    tgRender(); return;
+  }
+  if (!manual && document.visibilityState !== 'visible') return;
+  await tgLoad();
+  if (_tg.st && _tg.st.linked) {
+    tgPollStop(); _tg.link = null; tgRender();
+    showToast('✓ Telegram подключён');
+  } else if (manual) {
+    showToast('Пока не подключено — нажмите «Старт» в Telegram');
+  }
+}
+// Вернулись из Telegram во вкладку — проверяем сразу, не дожидаясь следующего опроса
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && _tg.link) { try { tgPollTick(false); } catch (e) {} }
+});
+async function tgDisconnect() {
+  if (_tg.busy) return;
+  if (!confirm('Отключить уведомления о бронях в Telegram?')) return;
+  _tg.busy = true; _tg.err = ''; tgRender();
+  try {
+    var r = await fetch(API + '/api/partner/telegram', { method: 'DELETE', headers: authHeaders() });
+    var d = null; try { d = await r.json(); } catch (e) {}
+    if (r.ok) {
+      _tg.st = Object.assign({}, _tg.st, { linked: false, linked_at: null });
+      showToast('Уведомления в Telegram отключены');
+    } else if (r.status === 503 && d && d.enabled === false) {
+      _tg.st = { enabled: false, linked: false };
+    } else {
+      _tg.err = (d && d.error) || 'Не удалось отключить. Попробуйте ещё раз.';
+    }
+  } catch (e) {
+    _tg.err = 'Нет связи с сервером. Проверьте интернет.';
+  }
+  _tg.busy = false;
+  tgRender();
 }
 
 function renderProfile() {
