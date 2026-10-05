@@ -196,7 +196,20 @@ table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-
 /* ══════════════════════════════════════════════════════
    27.09 — КАБИНЕТ НА ТЕЛЕФОНЕ, ФОТО ФАЙЛАМИ, РЕКВИЗИТЫ, ИИ
    ══════════════════════════════════════════════════════ */
-.bnav,.more-sheet,.save-fab{display:none}
+.bnav,.more-sheet{display:none}
+/* 05.10: кнопка «Сохранить изменения» объекта — одна, в конце формы, без прилипания */
+.hotel-save-row{margin-top:20px;display:flex;flex-direction:column;align-items:flex-start;gap:10px}
+.hotel-save-row #hotel-save-msg{align-self:stretch}
+.hotel-save-btn{background:var(--green);color:#c9f135;border:none;padding:11px 22px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px}
+/* 05.10: окно «Есть несохранённые изменения» — при уходе с «Моего отеля» без сохранения */
+.unsaved-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1100;align-items:center;justify-content:center;padding:16px}
+.unsaved-ov.open{display:flex}
+.unsaved-box{background:#fff;border-radius:16px;width:100%;max-width:440px;padding:22px 22px 18px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.unsaved-t{font-family:'Unbounded',sans-serif;font-size:15px;font-weight:800;margin-bottom:8px}
+.unsaved-s{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:18px}
+.unsaved-btns{display:flex;flex-direction:row-reverse;flex-wrap:wrap;gap:8px}
+.unsaved-btns .rm-btn:disabled{opacity:.6;cursor:default}
+.rm-btn.unsaved-discard{background:#fff;color:var(--red);border:1.5px solid var(--faint)}
 /* Скрытая всплывашка перехватывала нажатия: невидимая, но лежала поверх кнопок */
 .toast{pointer-events:none}
 /* Готовность объявления */
@@ -313,9 +326,11 @@ table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-
   .more-sheet .ms-user{font-size:12px;color:var(--muted);padding:0 6px 10px;border-bottom:1px solid var(--faint);margin-bottom:6px}
   .more-sheet button{display:flex;align-items:center;gap:12px;width:100%;padding:14px 8px;border:none;background:none;font-size:15px;font-family:inherit;color:var(--ink);border-radius:10px;text-align:left}
   .more-sheet button:active{background:var(--surface)}
-  .save-fab{position:fixed;left:12px;right:12px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:55;justify-content:center;align-items:center;gap:6px;background:var(--green);color:#c9f135;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;font-family:inherit;box-shadow:0 6px 20px rgba(26,92,56,.35)}
-  body.pg-hotel .save-fab{display:flex}
-  body.pg-hotel .content{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  /* 05.10: плавающая кнопка «Сохранить» убрана; на телефоне кнопка в конце формы — во всю ширину */
+  .hotel-save-btn{align-self:stretch;justify-content:center;padding:14px;font-size:15px;border-radius:12px}
+  /* 05.10: окно о несохранённых изменениях на телефоне — кнопки друг под другом во всю ширину */
+  .unsaved-btns{flex-direction:column}
+  .unsaved-btns .rm-btn{flex:none;width:100%}
   .toast{left:12px;right:12px;bottom:calc(132px + env(safe-area-inset-bottom));text-align:center}
   #bell-drop{position:fixed!important;left:8px;right:8px;top:calc(56px + env(safe-area-inset-top))!important;width:auto!important;max-height:70vh!important}
   /* таблицы броней → карточки */
@@ -345,7 +360,7 @@ table.rt tr.bk-focus{background:#fff7d6;border-color:var(--green)!important;box-
   #cal-month-label{min-width:0!important;flex:1}
   #page-calendar [style*="margin-left:auto;font-size:12px"]{flex-basis:100%;margin-left:0!important}
   /* до входа нижнего меню и кнопки нет: класс pg-… появляется только в кабинете */
-  body:not([class*="pg-"]) .bnav,body:not([class*="pg-"]) .save-fab{display:none!important}
+  body:not([class*="pg-"]) .bnav{display:none!important}
   .rm-thumb{width:80px;height:60px}
 }
 html.zb-lock,html.zb-lock body{overflow:hidden}
@@ -617,7 +632,7 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
         <div class="section">
           <div class="sec-head">
             <span class="sec-title">Информация об отеле</span>
-            <button onclick="saveHotelInfo()" style="background:var(--green);color:#c9f135;border:none;padding:9px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:6px">💾 Сохранить изменения</button>
+            <!-- 05.10: кнопка «Сохранить изменения» перенесена в конец формы — одна вместо двух -->
           </div>
           <div style="padding:1.2rem">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -736,7 +751,12 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
               <textarea id="h-cancel" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Например: бесплатная отмена за 3 дня до заезда · позже удерживается стоимость 1 ночи · при неявке — без возврата"></textarea>
               <div style="font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5">Выбранное правило действует автоматически: гость по ссылке из ваучера сможет отменить бронь только пока правило это разрешает. «Своя формулировка» — только текст в ваучере, гость сможет отменять до дня заезда.</div>
             </div>
-            <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+            <!-- 05.10: единственная кнопка сохранения — в конце формы, обычная, не прилипает к экрану.
+                 Раньше была вверху и плавающая на телефоне; сохранение то же — saveHotelInfo() -->
+            <div class="hotel-save-row">
+              <button type="button" class="hotel-save-btn" id="hotel-save-btn" onclick="saveHotelInfo()">💾 Сохранить изменения</button>
+              <div id="hotel-save-msg" style="display:none;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600"></div>
+            </div>
           </div>
         </div>
 
@@ -817,7 +837,18 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
     <button type="button" onclick="moreClose();doLogout()" style="color:var(--red)">🚪 Выйти</button>
   </div>
 </div>
-<button type="button" class="save-fab" id="save-fab" onclick="saveHotelInfo()">💾 Сохранить изменения</button>
+<!-- 05.10: спрашиваем, если с «Моего отеля» уходят в другой раздел, не сохранив изменения -->
+<div class="unsaved-ov" id="unsaved-ov" role="dialog" aria-modal="true" aria-labelledby="unsaved-t" onclick="if(event.target===this)unsavedPick('cancel')">
+  <div class="unsaved-box">
+    <div class="unsaved-t" id="unsaved-t">Есть несохранённые изменения</div>
+    <div class="unsaved-s">Вы изменили данные объекта, но не нажали «Сохранить изменения». Сохранить перед переходом?</div>
+    <div class="unsaved-btns">
+      <button type="button" class="rm-btn rm-btn-save" id="unsaved-save" onclick="unsavedPick('save')">Сохранить</button>
+      <button type="button" class="rm-btn unsaved-discard" onclick="unsavedPick('discard')">Не сохранять</button>
+      <button type="button" class="rm-btn rm-btn-cancel" onclick="unsavedPick('cancel')">Отмена</button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ═══ КАЛЕНДАРЬ ZDP (01.10.2026) ═══
@@ -1429,6 +1460,9 @@ setTimeout(function(){ document.documentElement.classList.remove('cab-boot'); },
 
 // ── NAV ──
 function showPage(name, el) {
+  // 05.10: уходим с «Моего отеля», не сохранив изменения, — сначала спрашиваем (окно unsavedAsk)
+  var _wasHotel = hotelOpen();
+  if (_wasHotel && name !== 'hotel' && hotelDirty()) { unsavedAsk(name, el); return; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('on'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   var pg = document.getElementById('page-' + name);
@@ -1440,11 +1474,12 @@ function showPage(name, el) {
   document.getElementById('pageTitle').textContent = titles[name] || name;
   try { sessionStorage.setItem('cab_page', name); if(location.hash.replace('#','')!==name) history.replaceState(null,'','#'+name); } catch(e){}
   if (name === 'bookings') renderBookingsTable(myBookings);
-  if (name === 'hotel') { try{ loadCityOptions(null); }catch(e){} loadHotelData(); }
+  // 05.10: повторное нажатие «Мой отель» с несохранёнными правками форму не перечитывает — иначе правки пропали бы молча
+  if (name === 'hotel' && !(_wasHotel && hotelDirty())) { try{ loadCityOptions(null); }catch(e){} loadHotelData(); }
   if (name === 'calendar') calInit();
   if (name === 'profile') renderProfile(); // раньше вкладка «Профиль» оставалась пустой — рендер не вызывался
   if (name === 'profile') { try { tgLoad(); } catch (e) {} }   // 05.10: блок «Уведомления в Telegram»
-  // Телефон: подсветка нижнего меню, класс страницы (кнопка «Сохранить» у объекта), прокрутка наверх
+  // Телефон: подсветка нижнего меню, класс страницы, прокрутка наверх (05.10: плавающей кнопки «Сохранить» больше нет)
   try {
     document.body.className = (document.body.className.replace(/\bpg-\S+/g, '') + ' pg-' + name).trim();
     document.querySelectorAll('.bnav button[data-p]').forEach(function(b){
@@ -2294,6 +2329,7 @@ async function loadHotelData() {
     } catch (e) { console.warn('hotel card:', e.message); }
 
     // Заполняем форму
+    _hotelDirty = false;   // 05.10: в форме теперь то, что на сервере
     document.getElementById('h-name').value = h.name_ru || '';
     document.getElementById('h-address').value = h.address || '';
     // Координаты показываем одной строкой — в том же виде, в каком их вставляют.
@@ -2471,7 +2507,7 @@ function parseCoords(raw) {
 
 function clearCoords() {
   const e = document.getElementById('h-coords');
-  if (e) { e.value = ''; e.dataset.cleared = '1'; }
+  if (e) { e.value = ''; e.dataset.cleared = '1'; hotelMarkDirty(); }   // 05.10: «Очистить» — тоже несохранённое изменение
 }
 
 async function saveHotelInfo() {
@@ -2530,11 +2566,17 @@ async function saveHotelInfo() {
     showToast('⚠️ Выберите город');
     return;
   }
+  // 05.10: итог сохранения нужен окну «Есть несохранённые изменения»; номер правки — чтобы не снять
+  // отметку с того, что хозяин успел поменять, пока шёл запрос
+  let saved = false;
+  const editSeq = _hotelEditSeq;
   try {
     const r = await fetch(`${API}/api/hotels/${myHotelId}`, {method:'PATCH',headers,body:JSON.stringify(body)});
     const d = await r.json();
     const msg = document.getElementById('hotel-save-msg');
     if (r.ok) {
+      saved = true;
+      if (editSeq === _hotelEditSeq) _hotelDirty = false;
       msg.textContent = '✅ Сохранено!';
       msg.style.cssText = 'display:block;color:#27500A;background:#EAF3DE;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:600';
       // Обновляем название в сайдбаре
@@ -2552,7 +2594,82 @@ async function saveHotelInfo() {
     console.error('saveHotelInfo error:', e.message);
     showToast('❌ Нет связи с сервером — изменения не сохранены');
   }
+  return saved;
 }
+
+// ══════════════════════════════════════════════════════
+// 05.10 — НЕСОХРАНЁННЫЕ ИЗМЕНЕНИЯ НА «МОЁМ ОТЕЛЕ»
+// ══════════════════════════════════════════════════════
+// Раньше правки формы молча пропадали, если хозяин уходил в другой раздел или
+// закрывал страницу, не нажав «Сохранить изменения». Теперь:
+//  • переход в другой раздел — окно «Сохранить / Не сохранять / Отмена»;
+//  • закрытие или обновление страницы — стандартное предупреждение браузера.
+// Отмечаем только действия самого хозяина в блоке «Информация об отеле»: заполнение
+// формы с сервера событий не даёт. Фото и номера сохраняются сами — их не считаем.
+// Выход кнопкой и автовыход сначала стирают сессию — их не задерживаем.
+var _hotelDirty = false, _hotelEditSeq = 0, _unsavedNext = null;
+function hotelMarkDirty(){ _hotelDirty = true; _hotelEditSeq++; }
+function hotelDirty(){ return !!(_hotelDirty && myHotelId); }
+function hotelOpen(){ var pg = document.getElementById('page-hotel'); return !!(pg && pg.classList.contains('on')); }
+(function(){
+  var f = document.getElementById('h-name'), sec = f && f.closest('.section');
+  if (!sec) return;
+  // поле помощника («расскажите своими словами») в объявление не сохраняется
+  function mark(e){ if (!(e.target && e.target.closest && e.target.closest('#ai-box'))) hotelMarkDirty(); }
+  sec.addEventListener('input', mark);
+  sec.addEventListener('change', mark);
+  // карточки «Как вы работаете с нами» — не поля ввода: сравниваем выбор до и после нажатия
+  var modeBefore = null;
+  sec.addEventListener('click', function(e){
+    if (e.target.closest && e.target.closest('.mode-card')) modeBefore = (document.getElementById('h-syncmode')||{}).value;
+  }, true);
+  sec.addEventListener('click', function(e){
+    if (modeBefore !== null && (document.getElementById('h-syncmode')||{}).value !== modeBefore) hotelMarkDirty();
+    modeBefore = null;
+  });
+})();
+function unsavedAsk(name, el){
+  _unsavedNext = { name: name, el: el };
+  var ov = document.getElementById('unsaved-ov'); if (!ov) return;
+  ov.classList.add('open'); document.documentElement.classList.add('zb-lock');
+  try { document.getElementById('unsaved-save').focus({ preventScroll: true }); } catch (e) {}
+}
+function unsavedClose(){
+  var ov = document.getElementById('unsaved-ov'); if (ov) ov.classList.remove('open');
+  var rm = document.getElementById('room-modal-overlay'), ms = document.getElementById('more-sheet');
+  if (!(rm && rm.classList.contains('open')) && !(ms && ms.classList.contains('open'))) document.documentElement.classList.remove('zb-lock');
+}
+async function unsavedPick(act){
+  var nx = _unsavedNext, btn = document.getElementById('unsaved-save');
+  if (btn && btn.disabled) return;   // сохранение уже идёт
+  if (act === 'save') {
+    var label = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Сохраняем…'; }
+    var ok = false;
+    try { ok = await saveHotelInfo(); } finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+    if (!ok) {
+      // Не сохранилось (не выбран город, ошибка в координатах, ответ сервера) — остаёмся,
+      // показываем сообщение под кнопкой «Сохранить изменения»
+      unsavedClose(); _unsavedNext = null;
+      var m = document.getElementById('hotel-save-msg');
+      if (m && m.style.display !== 'none') try { m.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch (e) {}
+      return;
+    }
+  }
+  unsavedClose(); _unsavedNext = null;
+  if (act === 'cancel' || !nx) return;
+  if (act === 'discard') _hotelDirty = false;   // форма перечитается с сервера при следующем входе в раздел
+  showPage(nx.name, nx.el);
+}
+document.addEventListener('keydown', function(e){
+  var ov = document.getElementById('unsaved-ov');
+  if (e.key === 'Escape' && ov && ov.classList.contains('open')) unsavedPick('cancel');
+});
+window.addEventListener('beforeunload', function(e){
+  if (!hotelOpen() || !hotelDirty()) return;
+  try { if (!sessionStorage.getItem('hotel_user')) return; } catch (x) { return; }   // выход / автовыход
+  e.preventDefault(); e.returnValue = '';
+});
 
 // ── ФОТО ОБЪЕКТА ──
 // Список берём из /api/partner/…/photos: там у каждого фото есть id и порядок.
@@ -3453,6 +3570,7 @@ function aiApply(what){
   var val=(what==='desc')?d.description:d.rules;
   if(el.value.trim() && el.value.trim()!==val && !confirm('Заменить текущий текст?')) return;
   el.value=val;
+  hotelMarkDirty();   // 05.10: вставка от помощника — несохранённое изменение
   el.scrollIntoView({behavior:'smooth',block:'center'});
   showToast('Вставлено. Проверьте текст и нажмите «Сохранить»');
 }
