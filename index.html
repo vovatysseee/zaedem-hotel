@@ -442,7 +442,8 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
       <label>Пароль</label>
       <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
     </div>
-    <label class="login-keep"><input type="checkbox" id="loginKeep"> <span>Запомнить на этом телефоне<small>Вход сохранится на 7 дней. Отмечайте только на своём телефоне</small></span></label>
+    <!-- 11.10: «телефоне» → «устройстве»: в кабинет входят и с компьютера, а запоминание работает в любом браузере. Логика (loginKeep, 7 дней) та же -->
+    <label class="login-keep"><input type="checkbox" id="loginKeep"> <span>Запомнить на этом устройстве<small>Вход сохранится на 7 дней. Отмечайте только на своём устройстве</small></span></label>
     <button class="login-btn" onclick="doLogin()">Войти</button>
     <div class="login-err" id="loginErr"></div>
     <div class="login-hint">Нет аккаунта? <a href="https://zaedem.by">Подать заявку →</a></div>
@@ -1196,7 +1197,7 @@ function authHeaders(json) {
 // ── ГДЕ ХРАНИТСЯ ВХОД ──
 // Обычно — до закрытия вкладки (sessionStorage) и с автовыходом через 60 минут
 // без действий: в кабинете данные гостей. Если хозяин отметил «Запомнить на этом
-// телефоне», вход хранится на устройстве (localStorage) до конца срока пропуска,
+// устройстве» (11.10: было «телефоне» — надпись поправлена), вход хранится на устройстве (localStorage) до конца срока пропуска,
 // который выдаёт сервер. «Выйти» стирает его, смена пароля обрывает все входы
 // на всех устройствах (это делает сервер). Вход админа по ссылке не запоминается.
 // Срок пропуска партнёра — 7 дней (users.js), дальше снова пароль.
@@ -1290,7 +1291,7 @@ let _idleTimer = null, _idleWarnTimer = null;
 function resetIdleTimer() {
   clearTimeout(_idleTimer); clearTimeout(_idleWarnTimer);
   if (!sessionStorage.getItem('hotel_user')) return;
-  if (sessKept()) return;   // «Запомнить на этом телефоне» — автовыхода нет, выход кнопкой
+  if (sessKept()) return;   // «Запомнить на этом устройстве» — автовыхода нет, выход кнопкой
   _idleWarnTimer = setTimeout(function(){
     try { const m=document.getElementById('cal-msg'); if(m){} } catch(e){}
     console.warn('Сессия закроется через минуту без действий');
