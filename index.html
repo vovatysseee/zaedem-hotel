@@ -743,6 +743,11 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
               <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Правила дома (видят гости)</label>
               <textarea id="h-rules" rows="3" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="Можно с животными · Тихий час с 23:00 · Не курить в помещении · Заезд самостоятельный по коду"></textarea>
             </div>
+            <!-- 19.10: «Как добраться» — гость видит в ваучере, PDF и «Моих бронях» только после подтверждения брони (бэкенд zaedem-backend#22, hotels.directions) -->
+            <div style="margin-bottom:16px">
+              <label for="h-directions" style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Как добраться (гость увидит после подтверждения брони)</label>
+              <textarea id="h-directions" rows="3" maxlength="1000" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical" placeholder="От ж/д вокзала 10 минут пешком · Вход со двора, синяя калитка · Парковка у дома бесплатная"></textarea>
+            </div>
             <div style="margin-bottom:16px">
               <label style="font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:6px">Правила отмены (видят гости при отмене)</label>
               <select id="h-cancel-pick" onchange="cancelPickChange()" style="width:100%;padding:10px 12px;border:1.5px solid var(--faint);border-radius:8px;font-size:14px;font-family:inherit;background:#fff;margin-bottom:8px">
@@ -2360,6 +2365,8 @@ async function loadHotelData() {
     if(document.getElementById('h-checkin')) document.getElementById('h-checkin').value = h.checkin_time || '14:00';
     if(document.getElementById('h-checkout')) document.getElementById('h-checkout').value = h.checkout_time || '12:00';
     if(document.getElementById('h-rules')) document.getElementById('h-rules').value = h.house_rules || '';
+    // 19.10: «Как добраться» (hotels.directions; до SQL бэкенд отдаёт null)
+    if(document.getElementById('h-directions')) document.getElementById('h-directions').value = h.directions || '';
     if(document.getElementById('h-cancel')) document.getElementById('h-cancel').value = h.cancel_rules || '';
     cancelPickInit(h.cancel_rules||'');
     loadCityOptions(h.city_id!=null?h.city_id:null);
@@ -2541,6 +2548,7 @@ async function saveHotelInfo() {
     checkin_time:   (document.getElementById('h-checkin')||{}).value||'',
     checkout_time:  (document.getElementById('h-checkout')||{}).value||'',
     house_rules:    (document.getElementById('h-rules')||{}).value.trim(),
+    directions:     ((document.getElementById('h-directions')||{}).value||'').trim(), // 19.10: «Как добраться»
     cancel_rules:   (document.getElementById('h-cancel')||{}).value.trim(),
     city_id:        (document.getElementById('h-city')||{}).value||null,
   };
