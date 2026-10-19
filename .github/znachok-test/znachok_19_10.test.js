@@ -31,15 +31,13 @@ const OUT = process.env.ZB_OUT || __dirname;
 const SHOTS = path.join(OUT, 'shots_19_10');
 fs.mkdirSync(SHOTS, { recursive: true });
 
-// Эталон — значок сайта zaedem.by (zaedem-frontend, index.html и страницы документов)
-const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Cpath d='M32.18 44.4Q27.8 44.4 25.14 42.65Q22.47 40.89 21.19 37.2L26.09 35.47Q27.8 40.17 32.18 40.17Q34.58 40.17 35.82 39.17Q37.06 38.18 37.06 36.38Q37.06 34.51 35.59 33.68Q34.11 32.85 30.97 32.85H29.88V28.64H30.97Q33.78 28.64 35.11 27.75Q36.45 26.86 36.45 25Q36.45 23.31 35.31 22.42Q34.17 21.53 32.16 21.53Q28.23 21.53 26.82 26.11L21.84 24.98Q23.12 21.18 25.69 19.34Q28.26 17.5 32.25 17.5Q36.54 17.5 39.14 19.35Q41.74 21.19 41.74 24.31Q41.74 26.71 40.42 28.3Q39.11 29.9 36.54 30.55Q39.35 30.96 40.88 32.56Q42.41 34.15 42.41 36.6Q42.41 40.17 39.64 42.28Q36.88 44.4 32.18 44.4Z' fill='%23c9f135'/%3E%3C/svg%3E";
-// SHA-1 иконок сайта zaedem.by (zaedem-frontend, b92471f). Если клон zaedem-frontend рядом (ZB_FRONT), берём из него.
+// 19.10: эталон — свой значок кабинета: «H» во вкладке, домик на экране «Домой» (как до PR #4)
+const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' fill='%23c9f135' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E";
+// SHA-1 иконок-домика кабинета (как до PR #4)
 const FRONT = process.env.ZB_FRONT || '/home/user/vovatysseee/zaedem-frontend';
 const ICON_SHA1 = {
-  'apple-touch-icon.png': '2c21141a4c95c5ab0c41ce189d151b0944aa601b',
-  'icon-192.png': '80a6aa5c0c4b8d43eb0ea4d4986778972e2ad703',
-  'icon-512.png': '078945da567290d657809c04e0574a12d4902b44',
-  'icon-maskable-512.png': 'a842d2f74a0747127585ffb32f47fa6f5e5bf93c'
+  'icon-192.png': '1d466c202df0a8d9b34b1618059633415570abeb',
+  'icon-512.png': 'ba7831f76fe046240ad0f56a7789046505b76e29'
 };
 const sha1 = f => crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex');
 
@@ -140,9 +138,9 @@ async function run(vp) {
     title: document.title
   }));
   ok('вкладка: один rel=icon', head.icons.length === 1, head.icons.length);
-  ok('вкладка: значок — тот же SVG, что у zaedem.by', head.icons[0] === FAVICON, (head.icons[0] || '').slice(0, 120));
-  ok('вкладка: прежней «H» нет', !/%3EH%3C\/text/.test(head.icons[0] || ''), null);
-  ok('вкладка: apple-touch-icon → apple-touch-icon.png', head.apple.length === 1 && head.apple[0] === 'apple-touch-icon.png', head.apple);
+  ok('вкладка: значок кабинета «H» (свой, не как у сайта)', head.icons[0] === FAVICON, (head.icons[0] || '').slice(0, 120));
+  ok('вкладка: в значке «H»', /%3EH%3C\/text/.test(head.icons[0] || ''), null);
+  ok('вкладка: apple-touch-icon → icon-192.png (домик)', head.apple.length === 1 && head.apple[0] === 'icon-192.png', head.apple);
 
   // Браузер рисует значок: на холсте — тёмно-зелёный фон и салатовая цифра
   const px = await page.evaluate(async href => {
@@ -173,19 +171,19 @@ async function run(vp) {
     const fp = path.join(FRONT, f);
     shaFront[f] = fs.existsSync(fp) ? sha1(fp) : ICON_SHA1[f];
   }
-  const sizes = { 'apple-touch-icon.png': 180, 'icon-192.png': 192, 'icon-512.png': 512, 'icon-maskable-512.png': 512 };
+  const sizes = { 'icon-192.png': 192, 'icon-512.png': 512 };
   for (const f of Object.keys(sizes)) {
     const r = await fetchImg(head.apple[0] && f === 'apple-touch-icon.png' ? head.apple[0] : f);
     ok(f + ': открывается как PNG ' + sizes[f] + '×' + sizes[f], r.status === 200 && /png/.test(r.ct || '') && r.w === sizes[f] && r.h === sizes[f], r);
     const mine = path.join(ROOT, f);
-    ok(f + ': файл совпадает с сайтом zaedem.by (SHA-1)', fs.existsSync(mine) && sha1(mine) === shaFront[f], { mine: fs.existsSync(mine) ? sha1(mine) : null, front: shaFront[f] });
+    ok(f + ': домик — тот же файл, что до PR #4 (SHA-1)', fs.existsSync(mine) && sha1(mine) === ICON_SHA1[f], { mine: fs.existsSync(mine) ? sha1(mine) : null, want: ICON_SHA1[f] });
   }
 
   // manifest: отдаётся, иконки открываются, есть maskable
   const mf = await page.evaluate(async () => { const r = await fetch(document.querySelector('link[rel="manifest"]').href); return { status: r.status, j: await r.json() }; });
   ok('manifest.webmanifest отдаётся, JSON читается', mf.status === 200 && mf.j && Array.isArray(mf.j.icons), mf.status);
   const mi = (mf.j && mf.j.icons) || [];
-  ok('manifest: есть иконки 192, 512 и maskable 512', ['192x192:any', '512x512:any', '512x512:maskable'].every(k => mi.some(i => i.sizes + ':' + i.purpose === k)), mi);
+  ok('manifest: есть иконки 192 и 512 (домик)', ['192x192:any', '512x512:any'].every(k => mi.some(i => i.sizes + ':' + i.purpose === k)), mi);
   for (const i of mi) {
     const r = await fetchImg(i.src);
     ok('manifest: ' + i.src + ' (' + i.purpose + ') открывается, размер ' + i.sizes, r.status === 200 && (r.w + 'x' + r.h) === i.sizes, r);
