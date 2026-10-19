@@ -32,14 +32,14 @@ const SHOTS = path.join(OUT, 'shots_19_10');
 fs.mkdirSync(SHOTS, { recursive: true });
 
 // Эталон — значок сайта zaedem.by (zaedem-frontend, index.html и страницы документов)
-const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='38' font-weight='900' fill='%23c9f135' text-anchor='middle'%3E3%3C/text%3E%3C/svg%3E";
+const FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Cpath d='M32.18 44.4Q27.8 44.4 25.14 42.65Q22.47 40.89 21.19 37.2L26.09 35.47Q27.8 40.17 32.18 40.17Q34.58 40.17 35.82 39.17Q37.06 38.18 37.06 36.38Q37.06 34.51 35.59 33.68Q34.11 32.85 30.97 32.85H29.88V28.64H30.97Q33.78 28.64 35.11 27.75Q36.45 26.86 36.45 25Q36.45 23.31 35.31 22.42Q34.17 21.53 32.16 21.53Q28.23 21.53 26.82 26.11L21.84 24.98Q23.12 21.18 25.69 19.34Q28.26 17.5 32.25 17.5Q36.54 17.5 39.14 19.35Q41.74 21.19 41.74 24.31Q41.74 26.71 40.42 28.3Q39.11 29.9 36.54 30.55Q39.35 30.96 40.88 32.56Q42.41 34.15 42.41 36.6Q42.41 40.17 39.64 42.28Q36.88 44.4 32.18 44.4Z' fill='%23c9f135'/%3E%3C/svg%3E";
 // SHA-1 иконок сайта zaedem.by (zaedem-frontend, b92471f). Если клон zaedem-frontend рядом (ZB_FRONT), берём из него.
 const FRONT = process.env.ZB_FRONT || '/home/user/vovatysseee/zaedem-frontend';
 const ICON_SHA1 = {
-  'apple-touch-icon.png': 'a776b6a832ee0fbe99153f15474d8bbae7e93647',
-  'icon-192.png': '3b186b78c27c407e3ca91377f3cf462cd274857e',
-  'icon-512.png': '21a676fccd71e93c18295ea3118823ccab220afa',
-  'icon-maskable-512.png': 'e3fe3cf803479fda427c6d78105711e6668896b4'
+  'apple-touch-icon.png': '2c21141a4c95c5ab0c41ce189d151b0944aa601b',
+  'icon-192.png': '80a6aa5c0c4b8d43eb0ea4d4986778972e2ad703',
+  'icon-512.png': '078945da567290d657809c04e0574a12d4902b44',
+  'icon-maskable-512.png': 'a842d2f74a0747127585ffb32f47fa6f5e5bf93c'
 };
 const sha1 = f => crypto.createHash('sha1').update(fs.readFileSync(f)).digest('hex');
 
