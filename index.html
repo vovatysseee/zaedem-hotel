@@ -27,10 +27,10 @@
 <!-- Панель не должна попадать в поисковую выдачу. Это не защита (кто знает адрес —
      откроет), но убирает самый лёгкий способ её найти: поиск по типовым словам. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<!-- Установка на телефон как приложение: manifest.webmanifest и две иконки лежат рядом с index.html -->
+<!-- Установка на телефон как приложение: manifest.webmanifest и иконки (apple-touch-icon.png, icon-192/512/maskable-512.png) лежат рядом с index.html -->
 <meta name="theme-color" content="#1a5c38">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Заедем Партнёр">
@@ -41,7 +41,8 @@
 try{ if(sessionStorage.getItem('hotel_user')||localStorage.getItem('hotel_user_keep')||/[?&]token=/.test(location.search)) document.documentElement.className+=' cab-boot'; }catch(e){}
 </script>
 <style>html.cab-boot body{visibility:hidden}</style>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='36' font-weight='900' fill='%23c9f135' text-anchor='middle'%3EH%3C/text%3E%3C/svg%3E">
+<!-- 19.10: значок вкладки и иконка на экран «Домой» — те же, что у сайта zaedem.by (файлы из zaedem-frontend как есть). Раньше были буква «H» и домик. -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230F2D1D'/%3E%3Ctext x='32' y='44' font-family='Arial,sans-serif' font-size='38' font-weight='900' fill='%23c9f135' text-anchor='middle'%3E3%3C/text%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;800&family=Golos+Text:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{
@@ -63,7 +64,9 @@ button{cursor:pointer;font-family:inherit}
 .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;width:100%;background:var(--green)}
 .login-box{background:#fff;border-radius:20px;padding:40px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
 .login-logo{font-family:'Unbounded',sans-serif;font-size:1.4rem;font-weight:800;color:var(--green);margin-bottom:4px}
-.login-sub{font-size:13px;color:var(--muted);margin-bottom:32px}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:4px}
+/* 19.10: подпись платформы под «Личный кабинет партнёра» — как в подвале сайта zaedem.by; отступ 32px от формы перенесён сюда с .login-sub */
+.login-tag{font-size:11.5px;line-height:1.4;color:var(--muted);opacity:.85;margin-bottom:32px}
 .login-field{margin-bottom:16px}
 .login-field label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
 .login-field input{width:100%;padding:12px 14px;border:1.5px solid var(--faint);border-radius:var(--r);font-size:14px;font-family:inherit;outline:none;transition:.2s}
@@ -434,6 +437,7 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
   <div class="login-box">
     <div class="login-logo">Заедем<span style="color:var(--lime)">.by</span></div>
     <div class="login-sub">Личный кабинет партнёра</div>
+    <div class="login-tag">Белорусская платформа бронирования жилья</div>
     <div class="login-field">
       <label>Email</label>
       <input type="email" id="loginEmail" placeholder="hotel@example.com" autocomplete="username">
