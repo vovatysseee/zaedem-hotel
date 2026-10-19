@@ -6,7 +6,8 @@
 //     manifest.webmanifest отдаётся, все иконки из него открываются и нужного размера, есть maskable;
 //  3) шапка: «Заедем.by» на входе (390 и 1366) и в боковой панели (1366), плашка «Кабинет — как приложение»
 //     на телефоне показывает новую иконку;
-//  4) старых подписей платформы («агрегатор отелей», «Платформа бронирования жилья» и т. п.) нет ни в странице,
+//  4) на экране входа под «Личный кабинет партнёра» — мелкая подпись «Белорусская платформа бронирования жилья»;
+//     старых подписей платформы («агрегатор отелей», «Платформа бронирования жилья» и т. п.) нет ни в странице,
 //     ни в манифесте, ни в README;
 //  5) страница работает как раньше: вход (заглушка), брони, открытие брони по ссылке #booking=<номер>,
 //     отмена брони (PATCH /api/bookings/<номер>/status), таблица после отмены;
@@ -195,6 +196,19 @@ async function run(vp) {
   const lg = await page.evaluate(() => { const e = document.querySelector('.login-logo'); const r = e.getBoundingClientRect(); return { t: e.textContent.trim(), vis: r.width > 0 && r.height > 0, ff: getComputedStyle(e).fontFamily }; });
   ok('вход: логотип «Заедем.by» виден', lg.t === 'Заедем.by' && lg.vis, lg);
   ok('вход: подзаголовок кабинета на месте', (await page.textContent('.login-sub')).trim() === 'Личный кабинет партнёра', null);
+  // подпись платформы под подзаголовком, мелким шрифтом, не вылезает из карточки входа
+  const tag = await page.evaluate(() => {
+    const els = [...document.querySelectorAll('.login-tag')];
+    const t = els[0], sub = document.querySelector('.login-sub'), box = document.querySelector('.login-box'), f = document.querySelector('.login-field');
+    if (!t) return { n: els.length };
+    const r = t.getBoundingClientRect(), rs = sub.getBoundingClientRect(), rb = box.getBoundingClientRect(), rf = f.getBoundingClientRect(), cs = getComputedStyle(t);
+    return { n: els.length, text: t.textContent.trim(), fs: parseFloat(cs.fontSize), subFs: parseFloat(getComputedStyle(sub).fontSize), ff: cs.fontFamily,
+      below: r.top >= rs.bottom - 1 && r.top - rs.bottom < 12, aboveForm: r.bottom <= rf.top, inside: r.left >= rb.left && r.right <= rb.right, h: r.height };
+  });
+  ok('вход: подпись «' + NEW_SIGNATURE + '» — одна, текст точный', tag.n === 1 && tag.text === NEW_SIGNATURE, tag);
+  ok('вход: подпись сразу под «Личный кабинет партнёра», выше формы, внутри карточки', tag.below && tag.aboveForm && tag.inside, tag);
+  ok('вход: подпись мельче подзаголовка, тот же шрифт сайта (Golos Text)', tag.fs < tag.subFs && /Golos Text/.test(tag.ff || ''), tag);
+  ok('вход: подпись в одну-две строки (не растягивает карточку)', tag.h > 0 && tag.h <= 2 * 11.5 * 1.4 + 1, tag);
 
   // старые подписи
   const html = await page.content();
