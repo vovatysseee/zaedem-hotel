@@ -152,6 +152,10 @@ tr:hover td{background:var(--surface)}
 .tg-btn:disabled{opacity:.55}
 .tg-btn.out{background:#fff;color:var(--green);border:1.5px solid var(--green)}
 .tg-btn.red{background:#fff;color:var(--red);border:1.5px solid var(--red)}
+/* 23.10 (порция 41Б): кнопка «Показать контакты» в списке броней и текст «данные удалены по сроку хранения» */
+.bk-rv{margin-top:4px;background:#fff;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:3px 8px;font-size:10.5px;font-weight:700;font-family:inherit;cursor:pointer}
+.bk-rv:disabled{opacity:.55;cursor:default}
+.bk-pd{font-size:11px;color:var(--muted);line-height:1.4}
 .tg-ok{display:inline-block;background:var(--green-pale);color:var(--green);font-weight:700;font-size:12.5px;padding:4px 10px;border-radius:7px}
 .tg-wait{margin-top:14px;padding:12px 14px;border:1px dashed rgba(26,92,56,.35);border-radius:10px;background:var(--green-pale);font-size:12.5px;line-height:1.55;color:var(--ink)}
 .tg-err{margin-top:10px;font-size:12px;font-weight:600;color:var(--red)}
@@ -1182,6 +1186,13 @@ html.zb-lock,html.zb-lock body{overflow:hidden}
 const API = 'https://api.zaedem.by';
 let currentUser = null;
 let myBookings = [];
+// 23.10 (порция 41Б): защита данных гостей. Сервер с PARTNER_PD_MASK=1 присылает в /my pd_mask: true и телефон/e-mail
+// маской. Полные контакты хозяин открывает кнопкой в строке (GET /api/bookings/:num) — они лежат только в памяти страницы
+// (никуда не пишем), живут до «Скрыть», выхода или перезагрузки. Без pd_mask всё как раньше.
+var _pdMask = false;
+var _bkCards = {};      // номер брони → { guest_phone, guest_email } из карточки
+var _bkCardBusy = {};   // номер брони → идёт запрос карточки
+const PD_PURGED_TEXT = 'Данные удалены по сроку хранения';
 // 27.09: данные для «Готовности объявления», фото, реквизиты, ИИ
 var _rd = { hotel: null, photos: null, rooms: null, req: undefined };
 var _photos = [], _photosApi = true;
@@ -1513,8 +1524,10 @@ async function loadMyBookings() {
     if (!r.ok) {
       console.warn('bookings/my error:', d.error);
       myBookings = [];
+      _pdMask = false;
     } else {
       myBookings = (d.bookings || []);
+      _pdMask = (d.pd_mask === true);   // 23.10: маски телефона и e-mail в списке (порция 41Б)
       ok = true;
     }
     updateStats();
@@ -1533,7 +1546,7 @@ async function loadMyBookings() {
 // 04.10: перерисовать «Мои брони», если вкладка открыта и брони изменились (новая, отмена, анкета)
 var _bkSig = '';
 function bookingsSig(list){
-  try{ return (list||[]).map(function(b){ return [b.booking_num,b.status,b.contract_filled_at||'',b.contract_has_foreign||'',b.updated_at||'',b.cancelled_at||''].join('|'); }).join(';'); }
+  try{ return (list||[]).map(function(b){ return [b.booking_num,b.status,b.contract_filled_at||'',b.contract_has_foreign||'',b.contract_purged||'',b.updated_at||'',b.cancelled_at||''].join('|'); }).join(';'); }
   catch(e){ return String(Date.now()); }
 }
 function bookingsRefreshOpen(force){
@@ -1690,16 +1703,30 @@ function renderBookingsTable(bookings) {
         // бронировании, а потом уточняет в анкете. Берём любое из двух —
         // бейдж должен загораться сразу, а не только после заполнения анкеты.
         var citizen  = String(b.guest_citizenship || '').trim();
-        var foreign  = (filled && b.contract_has_foreign === true)
-                    || (!!citizen && citizen !== 'Беларусь' && citizen !== 'BY');
+        // 23.10: анкета удалена по сроку хранения — вместо данных и кнопок печати показываем текст сервера
+        var purged   = (b.contract_purged === true);
+        var foreign  = !purged && ((filled && b.contract_has_foreign === true)
+                    || (!!citizen && citizen !== 'Беларусь' && citizen !== 'BY'));
         var nGuests  = parseInt(b.contract_guests_count || 0, 10) || 0;
+        // 23.10 (порция 41Б): при pd_mask телефон и e-mail приходят маской — показываем как пришли, без ссылки tel:.
+        // Полные — только после кнопки «Показать контакты» (карточка брони, по действию хозяина, не для всех строк сразу)
+        var masked   = (_pdMask || b.pd_masked === true);
+        var card     = masked ? _bkCards[b.booking_num] : null;
+        var phoneShown = card ? card.guest_phone : b.guest_phone;
+        var emailShown = card ? card.guest_email : b.guest_email;
+        var canTel   = !!phoneShown && (!masked || !!card) && !/\*/.test(String(phoneShown));
+        var phoneHtml = phoneShown
+          ? (canTel ? `<a href="tel:${esc(String(phoneShown).replace(/[^\d+]/g,''))}" style="color:var(--green);font-weight:600;text-decoration:none">${esc(phoneShown)}</a>`
+                    : `<span style="font-weight:600">${esc(phoneShown)}</span>`)
+          : '—';
+        if (masked) phoneHtml += `<br><button type="button" class="bk-rv" onclick="revealContacts('${escAttr(b.booking_num)}',this)">${card?'🙈 Скрыть контакты':'👁 Показать контакты'}</button>`;
         return `
         <tr data-bk="${esc(b.booking_num)}"${(_bkFocus && b.booking_num===_bkFocus)?' class="bk-focus"':''}${foreign?' style="background:#fff5f5"':''}>
           <td data-l="Бронь"><b style="color:var(--green)">${esc(b.booking_num)}</b></td>
-          <td data-l="Гость"><div>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(b.guest_email)}</span>${
-            filled?`<br><span style="display:inline-block;margin-top:3px;background:#e8f5e9;color:#1a5c38;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">✅ данные загружены${nGuests?' · '+nGuests+' чел.':''}</span>`:''
+          <td data-l="Гость"><div>${esc(b.guest_name||'—')}<br><span style="color:var(--muted);font-size:10px">${esc(emailShown)}</span>${
+            (filled && !purged)?`<br><span style="display:inline-block;margin-top:3px;background:#e8f5e9;color:#1a5c38;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">✅ данные загружены${nGuests?' · '+nGuests+' чел.':''}</span>`:''
           }${foreign?`<br><span style="display:inline-block;margin-top:3px;background:#ffe0e0;color:#c00;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px">🛂 ${esc(citizen&&citizen!=='BY'?citizen:'иностранцы')} — регистрация в МВД</span>`:''}</div></td>
-          <td data-l="Телефон">${b.guest_phone ? `<a href="tel:${esc(String(b.guest_phone).replace(/[^\d+]/g,''))}" style="color:var(--green);font-weight:600;text-decoration:none">${esc(b.guest_phone)}</a>` : '—'}</td>
+          <td data-l="Телефон">${phoneHtml}</td>
           <td data-l="Объект">${esc(b.hotel_name||'—')}</td>
           <td data-l="Заезд">${fmtDate(b.check_in)}</td>
           <td data-l="Выезд">${fmtDate(b.check_out)}</td>
@@ -1707,11 +1734,12 @@ function renderBookingsTable(bookings) {
           <td data-l="Сумма"><b>${parseFloat(b.total_price||0).toFixed(0)} ${esc(b.currency||'BYN')}</b></td>
           <td data-l="Статус">${statusBadge(b.status)}</td>
           <td class="act" data-l="" style="display:flex;flex-direction:column;gap:4px">
-            ${(own && !filled)?`<button onclick="requestGuestData('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✉️ Запросить данные</button>`:''}
-            ${(own && !filled)?`<button onclick="contractLink('${escAttr(b.booking_num)}')" style="background:#fff;color:var(--muted);border:1px solid var(--faint);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">🔗 Ссылка вручную</button>`:''}
-            ${(own && filled)?`<button onclick="guestSheet('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📄 Лист сведений</button>`:''}
-            ${(own && filled)?`<button onclick="showGuestData('${escAttr(b.booking_num)}')" style="background:#eef7ee;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">👁 Данные гостя</button>`:''}
+            ${(own && !filled && !purged)?`<button onclick="requestGuestData('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✉️ Запросить данные</button>`:''}
+            ${(own && !filled && !purged)?`<button onclick="contractLink('${escAttr(b.booking_num)}')" style="background:#fff;color:var(--muted);border:1px solid var(--faint);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer">🔗 Ссылка вручную</button>`:''}
+            ${(own && filled && !purged)?`<button onclick="guestSheet('${escAttr(b.booking_num)}')" style="background:var(--green);color:#c9f135;border:none;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📄 Лист сведений</button>`:''}
+            ${(own && filled && !purged)?`<button onclick="showGuestData('${escAttr(b.booking_num)}')" style="background:#eef7ee;color:var(--green);border:1px solid var(--green);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">👁 Данные гостя</button>`:''}
             ${(own && foreign)?`<button onclick="mvdAnketa('${escAttr(b.booking_num)}')" style="background:#fff0f0;color:#c00;border:1px solid #f0b0b0;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">📋 Анкета МВД</button>`:''}
+            ${purged?`<span class="bk-pd">${esc(b.contract_purged_text||PD_PURGED_TEXT)}</span>`:''}
             ${b.status==='confirmed' ? `<button onclick="hotelCancelBooking('${escAttr(b.booking_num)}')" style="background:var(--red-pale);color:var(--red);border:1px solid var(--red);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Отменить</button>` : '—'}
           </td>
         </tr>`; }).join('')}
@@ -1764,11 +1792,75 @@ async function requestGuestData(bookingNum){
 }
 
 // ── Единственная загрузка паспортных данных (по одной броне, под журнал) ──
-async function fetchGuestData(bookingNum){
-  const r=await fetch(`${API}/api/bookings/${encodeURIComponent(bookingNum)}/guest-data`,{headers:authHeaders()});
-  const d=await r.json();
-  if(!r.ok||!d.ok) throw new Error(d.error||'Не удалось получить данные');
-  return d;
+// 23.10 (порция 41Б): purpose — зачем данные: 'print_info' (лист сведений), 'print_mvd' (анкета МВД); без purpose —
+// простой просмотр. По purpose сервер пишет в журнал передачи данных печать, а не просмотр.
+// Пока запрос идёт, второй не отправляем (двойной щелчок не должен сжигать предел запросов в час).
+// 429 (предел запросов в час) — текст из error; повторов сами не делаем: следующий запрос — только по новому нажатию.
+var _gdBusy = false;
+async function fetchGuestData(bookingNum, purpose){
+  if(_gdBusy){ const e=new Error(''); e.silent=true; throw e; }
+  _gdBusy=true;
+  try{
+    const q=purpose?('?purpose='+encodeURIComponent(purpose)):'';
+    const r=await fetch(`${API}/api/bookings/${encodeURIComponent(bookingNum)}/guest-data${q}`,{headers:authHeaders()});
+    let d=null; try{ d=await r.json(); }catch(e){ d=null; }
+    if(r.status===429) throw new Error((d&&d.error)||'Слишком много запросов данных гостей. Попробуйте через час или напишите на hotel@zaedem.by.');
+    if(!r.ok||!d||!d.ok) throw new Error((d&&d.error)||'Не удалось получить данные');
+    return d;
+  } finally { _gdBusy=false; }
+}
+// Ошибка загрузки — в окно, без белого экрана; silent — второй щелчок, пока идёт первый запрос
+function gdFail(e){ if(e && e.silent) return; alert((e&&e.message)||'Сервис недоступен'); }
+// 23.10: анкета удалена по сроку хранения (purged в guest-data) — вместо данных и печати показываем текст сервера,
+// а строку списка помечаем, чтобы кнопки «Лист сведений» / «Данные гостя» / «Анкета МВД» исчезли
+function gdPurged(bookingNum, d){
+  if(!d || d.purged !== true) return false;
+  const txt = d.purged_text || PD_PURGED_TEXT;
+  try{
+    const row = myBookings.find(function(x){ return x.booking_num===bookingNum; });
+    if(row){ row.contract_purged = true; row.contract_purged_text = txt; renderBookingsTable(myBookings); }
+  }catch(e){}
+  alert(txt);
+  return true;
+}
+// 23.10: «Контакт для связи» в печатных формах — всегда полный телефон, не маска. Берём из guest-data;
+// если там вдруг маска — из карточки брони (один запрос, по нажатию печати)
+async function fullGuestPhone(bookingNum, b){
+  const ph = b && b.guest_phone;
+  if(ph && !/\*/.test(String(ph))) return ph;
+  if(!ph) return '';
+  try{
+    const c = _bkCards[bookingNum] || await fetchBookingCard(bookingNum);
+    if(c && c.guest_phone && !/\*/.test(String(c.guest_phone))) return c.guest_phone;
+  }catch(e){}
+  return '';
+}
+
+// ── Карточка брони: полные контакты гостя (GET /api/bookings/:num, поле booking) ──
+async function fetchBookingCard(bookingNum){
+  const r=await fetch(`${API}/api/bookings/${encodeURIComponent(bookingNum)}`,{headers:authHeaders()});
+  let d=null; try{ d=await r.json(); }catch(e){ d=null; }
+  if(!r.ok||!d||!d.booking) throw new Error((d&&d.error)||'Не удалось получить контакты');
+  return d.booking;
+}
+// Кнопка в строке списка: показать полные контакты этой брони / скрыть обратно. Запрос — только по нажатию, одна бронь
+async function revealContacts(bookingNum, btn){
+  if(_bkCards[bookingNum]){ delete _bkCards[bookingNum]; renderBookingsTable(myBookings); return; }
+  if(_bkCardBusy[bookingNum]) return;
+  _bkCardBusy[bookingNum]=true;
+  if(btn){ btn.disabled=true; btn.textContent='Загружаю…'; }
+  try{
+    const c=await fetchBookingCard(bookingNum);
+    _bkCards[bookingNum]={ guest_phone:c.guest_phone||'', guest_email:c.guest_email||'' };
+    if(c.contract_purged===true){
+      const row=myBookings.find(function(x){ return x.booking_num===bookingNum; });
+      if(row){ row.contract_purged=true; row.contract_purged_text=c.contract_purged_text||PD_PURGED_TEXT; }
+    }
+    renderBookingsTable(myBookings);
+  }catch(e){
+    showToast(e.message||'Сервис недоступен', true);
+    if(btn){ btn.disabled=false; btn.textContent='👁 Показать контакты'; }
+  }finally{ _bkCardBusy[bookingNum]=false; }
 }
 
 // ── Читаемые подписи вместо кодов из формы гостя ──
@@ -1825,9 +1917,11 @@ function printWindow(title, bodyHtml){
 // от руки переписывать паспорта больше не нужно.
 async function guestSheet(bookingNum){
   try{
-    const d=await fetchGuestData(bookingNum);
+    const d=await fetchGuestData(bookingNum,'print_info');   // 23.10: purpose — печать листа сведений
+    if(gdPurged(bookingNum,d)) return;
     const b=d.booking||{}, gs=d.guests||[];
     if(!gs.length){ alert('Гость ещё не заполнил данные.'); return; }
+    const phone=await fullGuestPhone(bookingNum,b);
     var rows=gs.map(function(g,i){
       return '<tr><td>'+(i+1)+'</td>'
         +'<td>'+esc(fio(g))+'</td>'
@@ -1847,7 +1941,7 @@ async function guestSheet(bookingNum){
         +'<br><b>Бронирование №:</b> '+esc(b.booking_num||bookingNum)
         +'<br><b>Период проживания:</b> '+esc(fmtDay(b.check_in))+' — '+esc(fmtDay(b.check_out))
         +' ('+esc(b.nights||'')+' ноч.)'
-        +'<br><b>Контакт для связи:</b> '+esc(b.guest_phone||'—')+'</div>'
+        +'<br><b>Контакт для связи:</b> '+esc(phone||'—')+'</div>'
       +'<table><tr><th>№</th><th>Фамилия, имя, отчество</th><th>Дата рождения</th><th>Гражданство</th>'
       +'<th>Документ</th><th>Кем и когда выдан</th><th>Личный номер</th><th>Адрес регистрации</th></tr>'
       +rows+'</table>'
@@ -1859,13 +1953,14 @@ async function guestSheet(bookingNum){
       +(d.filled_at?('('+esc(new Date(d.filled_at).toLocaleString('ru-RU'))+')'):'')
       +' и передаются только наймодателю — для договора найма и регистрации по месту пребывания. '
       +'Сверьте сведения с документами при заселении.</div>');
-  }catch(e){ alert(e.message||'Сервис недоступен'); }
+  }catch(e){ gdFail(e); }
 }
 
 // ── Просто посмотреть данные, без печати ──
 async function showGuestData(bookingNum){
   try{
-    const d=await fetchGuestData(bookingNum);
+    const d=await fetchGuestData(bookingNum);   // без purpose — простой просмотр
+    if(gdPurged(bookingNum,d)) return;
     const gs=d.guests||[];
     if(!gs.length){ alert('Гость ещё не заполнил данные.'); return; }
     var txt=gs.map(function(g,i){
@@ -1879,7 +1974,7 @@ async function showGuestData(bookingNum){
     }).join('\n\n');
     alert('Данные проживающих · бронь '+bookingNum+'\n\n'+txt
       +'\n\nДля договора нажмите «Лист сведений» — распечатается готовая форма.');
-  }catch(e){ alert(e.message||'Сервис недоступен'); }
+  }catch(e){ gdFail(e); }
 }
 // ── СВЕДЕНИЯ ОБ ИНОСТРАННЫХ ГРАЖДАНАХ (для регистрации по месту пребывания) ──
 // Раньше эта форма читала b.guest_passports и b.guest_citizenship — полей,
@@ -1890,10 +1985,12 @@ async function showGuestData(bookingNum){
 // по месту пребывания в таком виде не требуется.
 async function mvdAnketa(bookingNum){
   try{
-    const d=await fetchGuestData(bookingNum);
+    const d=await fetchGuestData(bookingNum,'print_mvd');   // 23.10: purpose — печать анкеты МВД
+    if(gdPurged(bookingNum,d)) return;
     const b=d.booking||{};
     const gs=(d.guests||[]).filter(function(g){ return g.citizenship && g.citizenship!=='BY'; });
     if(!gs.length){ alert('Среди проживающих нет иностранных граждан.'); return; }
+    const phone=await fullGuestPhone(bookingNum,b);
     var rows=gs.map(function(g,i){
       return '<tr><td>'+(i+1)+'</td>'
         +'<td>'+esc(fio(g))+'</td>'
@@ -1911,7 +2008,7 @@ async function mvdAnketa(bookingNum){
         +'<br><b>Бронирование №:</b> '+esc(b.booking_num||bookingNum)
         +'<br><b>Срок пребывания:</b> '+esc(fmtDay(b.check_in))+' — '+esc(fmtDay(b.check_out))
         +' ('+esc(b.nights||'')+' ноч.)'
-        +'<br><b>Контакт для связи:</b> '+esc(b.guest_phone||'—')+'</div>'
+        +'<br><b>Контакт для связи:</b> '+esc(phone||'—')+'</div>'
       +'<table><tr><th>№</th><th>Фамилия, имя, отчество</th><th>Дата рождения</th><th>Гражданство</th>'
       +'<th>Вид документа</th><th>Серия и номер</th><th>Кем и когда выдан</th></tr>'
       +rows+'</table>'
@@ -1921,7 +2018,7 @@ async function mvdAnketa(bookingNum){
       +'Перед подачей сверьте их с документами. Порядок и сроки регистрации иностранных граждан '
       +'по месту пребывания уточните в органе внутренних дел по месту нахождения объекта — '
       +'требования зависят от гражданства и основания въезда.</div>');
-  }catch(e){ alert(e.message||'Сервис недоступен'); }
+  }catch(e){ gdFail(e); }
 }
 
 // ══════════════════════════════════════════════════════
@@ -2097,10 +2194,40 @@ function renderProfile() {
         <div id="pw-msg" style="display:none;font-size:12px;font-weight:600;padding:9px 12px;border-radius:8px;line-height:1.45"></div>
       </div>
     </div>
+
+    <!-- 23.10 (порция 41Б): выход на всех устройствах — POST /api/users/logout-all -->
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--faint)">
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:4px">🚪 Выйти на всех устройствах</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.5">
+        Если вы входили в кабинет с чужого или потерянного устройства: все входы, в том числе «запомненные», закончатся, и здесь тоже нужно будет войти заново.
+      </div>
+      <button type="button" class="tg-btn red" id="lo-all-btn" onclick="logoutAll()">Выйти на всех устройствах</button>
+      <div id="lo-all-msg" style="display:none;margin-top:10px;font-size:12px;font-weight:600;color:var(--red);line-height:1.45"></div>
+    </div>
   `;
   // Реквизиты: сначала показываем то, что уже знаем, затем обновляем с сервера
   rqFill();
   loadRequisites(true);
+}
+
+// ── Выйти на всех устройствах ───────────────────────
+// 23.10: подтверждение → POST /api/users/logout-all → {success:true} → выход здесь и экран входа. Не получилось
+// (сеть, ошибка сервера) — остаёмся в кабинете и говорим об этом; 401 — вход уже отозван, просто выходим
+async function logoutAll(){
+  const btn=document.getElementById('lo-all-btn'), msg=document.getElementById('lo-all-msg');
+  if(btn && btn.disabled) return;
+  if(!confirm('Выйти на всех устройствах?\n\nВсе входы в ваш кабинет, в том числе запомненные на устройствах, закончатся. Здесь тоже нужно будет войти заново.')) return;
+  if(msg) msg.style.display='none';
+  if(btn) btn.disabled=true;
+  try{
+    const r=await fetch(`${API}/api/users/logout-all`,{method:'POST',headers:authHeaders(true)});
+    let d=null; try{ d=await r.json(); }catch(e){ d=null; }
+    if((r.ok && d && d.success===true) || r.status===401){ doLogout(); return; }
+    throw new Error((d&&d.error)||'Не удалось выйти на всех устройствах. Попробуйте ещё раз.');
+  }catch(e){
+    if(btn) btn.disabled=false;
+    if(msg){ msg.textContent=(e&&e.message)||'Сервис недоступен, попробуйте позже'; msg.style.display='block'; }
+  }
 }
 
 // ── Смена пароля партнёром ──────────────────────────
